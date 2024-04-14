@@ -5,6 +5,7 @@
 // *****************************************************************************
 
 #include "hexFile.h"
+#include "guiMainWindow.h"
 #include <QFile>
 #include <QtWidgets/QMessageBox>
 
@@ -115,6 +116,7 @@ hexDataChunk::setData(const std::vector<uint8_t> &d)
 bool 
 hexFile::readHex(const QString& hexFileName)
 {
+    mainWindow()->clearText();
     QFile fi(hexFileName);
     if (fi.open(QIODevice::ReadOnly)) {
 
@@ -128,6 +130,8 @@ hexFile::readHex(const QString& hexFileName)
             
             // Read a line
             QString line = fi.readLine();
+            // Append it to the msg area
+            mainWindow()->appendText(line.remove("\n"));
 
             // Get the start character
             int32_t index = line.indexOf(QChar(':'));

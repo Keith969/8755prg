@@ -11,6 +11,9 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     ui.setupUi(this);
+    // Set the textEdit font to fixed spacing
+    ui.textEdit->setFontFamily("Courier");
+    m_HexFile.setMainWindow(this);
 
     // Set connections
     QObject::connect(ui.actionOpen_HEX_file, SIGNAL(triggered()), this, SLOT(openHexFile()));

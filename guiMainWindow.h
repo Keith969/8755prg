@@ -27,6 +27,9 @@ public slots:
     void saveHexFile();
     void quit();
 
+    void appendText(const QString& s) { ui.textEdit->append(s); }
+    void clearText() { ui.textEdit->clear(); }
+
 private:
     Ui::guiMainWindowClass ui;
 

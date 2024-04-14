@@ -33,7 +33,7 @@ public slots:
 private:
     Ui::guiMainWindowClass ui;
 
-    // THe hex file structure
+    // The hex file structure
     hexFile m_HexFile;
 };
 

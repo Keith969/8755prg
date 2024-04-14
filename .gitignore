@@ -1,2 +1,7 @@
 x64/*
 .vs/*
+.qmake.stash
+8755prg.app/*
+GeneratedFiles/*
+Makefile
+release/*

@@ -137,7 +137,7 @@ hexFile::readHex(const QString& hexFileName)
             int32_t index = line.indexOf(QChar(':'));
             if (index < 0) {
                 QString message = QString("Not a valid HEX file at line %1").arg(lineNum);
-                QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Not a HEX file", message);
+                QMessageBox::warning(nullptr, "Not a HEX file", message);
                 return false;
             }
 
@@ -153,7 +153,7 @@ hexFile::readHex(const QString& hexFileName)
             }
             else {
                 QString message = QString("Invalid byte count %s at line %1").arg(s).arg(lineNum);
-                QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid byte count", message);
+                QMessageBox::warning(nullptr, "Invalid byte count", message);
                 return false;
             }
             index += 2;
@@ -167,7 +167,7 @@ hexFile::readHex(const QString& hexFileName)
             }
             else {
                 QString message = QString("Invalid hi address %1 at line %2").arg(s).arg(lineNum);
-                QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid address", message);
+                QMessageBox::warning(nullptr, "Invalid address", message);
                 return false;
             }
             s = line.sliced(index, 2);
@@ -180,7 +180,7 @@ hexFile::readHex(const QString& hexFileName)
             }
             else {
                 QString message = QString("Invalid lo address %1 at line %2").arg(s).arg(lineNum);
-                QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid address", message);
+                QMessageBox::warning(nullptr, "Invalid address", message);
                 return false;
             }
 
@@ -200,13 +200,13 @@ hexFile::readHex(const QString& hexFileName)
                 }
                 else {
                     QString message = QString("Invalid record type %1 at line %2").arg(s).arg(lineNum);
-                    QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid record type", message);
+                    QMessageBox::warning(nullptr, "Invalid record type", message);
                     return false;
                 }
             }
             else {
                 QString message = QString("Invalid record type %1 at line %2").arg(s).arg(lineNum);
-                QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid record type", message);
+                QMessageBox::warning(nullptr, "Invalid record type", message);
                 return false;
             }
             index += 2;
@@ -222,7 +222,7 @@ hexFile::readHex(const QString& hexFileName)
                 }
                 else {
                     QString message = QString("Invalid byte %s at line %1").arg(s).arg(lineNum);
-                    QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid byte", message);
+                    QMessageBox::warning(nullptr, "Invalid byte", message);
                     return false;
                 }
                 index += 2;
@@ -238,7 +238,7 @@ hexFile::readHex(const QString& hexFileName)
             if (ok) {
                 if (cs != lsb) {
                     QString message = QString("Invalid checksum at line %1").arg(lineNum);
-                    QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid checksum", message);
+                    QMessageBox::warning(nullptr, "Invalid checksum", message);
                     return false;
                 }
                 else {

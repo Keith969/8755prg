@@ -152,7 +152,7 @@ hexFile::readHex(const QString& hexFileName)
                 checkSum += byteCount;
             }
             else {
-                QString message = QString("Invalid byte count at line %1").arg(lineNum);
+                QString message = QString("Invalid byte count %s at line %1").arg(s).arg(lineNum);
                 QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid byte count", message);
                 return false;
             }
@@ -161,18 +161,25 @@ hexFile::readHex(const QString& hexFileName)
             // Get the address
             s = line.sliced(index, 2);
             uint8_t hi = s.toInt(&ok, 16);
-            checkSum += hi;
-            index += 2;
+            if (ok) {
+                checkSum += hi;
+                index += 2;
+            }
+            else {
+                QString message = QString("Invalid hi address %1 at line %2").arg(s).arg(lineNum);
+                QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid address", message);
+                return false;
+            }
             s = line.sliced(index, 2);
             uint8_t lo = s.toInt(&ok, 16);
-            checkSum += lo;
-            index += 2;
             if (ok) {
+                checkSum += lo;
+                index += 2;
                 int16_t address = (hi << 8) + lo;
                 chunk.setAddress(address);
             }
             else {
-                QString message = QString("Invalid address at line %1").arg(lineNum);
+                QString message = QString("Invalid lo address %1 at line %2").arg(s).arg(lineNum);
                 QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid address", message);
                 return false;
             }
@@ -192,13 +199,13 @@ hexFile::readHex(const QString& hexFileName)
                     checkSum += recType;
                 }
                 else {
-                    QString message = QString("Invalid record type at line %1").arg(lineNum);
+                    QString message = QString("Invalid record type %1 at line %2").arg(s).arg(lineNum);
                     QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid record type", message);
                     return false;
                 }
             }
             else {
-                QString message = QString("Invalid record type at line %1").arg(lineNum);
+                QString message = QString("Invalid record type %1 at line %2").arg(s).arg(lineNum);
                 QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid record type", message);
                 return false;
             }
@@ -214,7 +221,7 @@ hexFile::readHex(const QString& hexFileName)
                     checkSum += val;
                 }
                 else {
-                    QString message = QString("Invalid byte line %1").arg(lineNum);
+                    QString message = QString("Invalid byte %s at line %1").arg(s).arg(lineNum);
                     QMessageBox::StandardButton button = QMessageBox::warning(nullptr, "Invalid byte", message);
                     return false;
                 }
@@ -239,7 +246,7 @@ hexFile::readHex(const QString& hexFileName)
                 }
             }
 
-            // note this reverses the data...
+            // Add to the hex buffer
             m_HexData.push_back(chunk);
 
             // bump line number
@@ -254,7 +261,7 @@ hexFile::readHex(const QString& hexFileName)
 
 // *****************************************************************************
 // Function     [ writeHex ]
-// Description  [ Write the hexData struct to disk ]
+// Description  [ Write the hexData buffer to disk ]
 // *****************************************************************************
 bool 
 hexFile::writeHex(const QString& hexFileName)

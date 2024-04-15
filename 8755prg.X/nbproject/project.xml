@@ -3,13 +3,9 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>8755_PRG</name>
-            <creation-uuid>1bcf161c-86de-4ef1-b157-1c75a0cbcb3b</creation-uuid>
+            <name>8755prg</name>
+            <creation-uuid>499b2d27-fe7b-4f4c-a4f0-fd959dc444c9</creation-uuid>
             <make-project-type>0</make-project-type>
-            <c-extensions>c</c-extensions>
-            <cpp-extensions/>
-            <header-extensions>h</header-extensions>
-            <asminc-extensions/>
             <sourceEncoding>ISO-8859-1</sourceEncoding>
             <make-dep-projects/>
             <sourceRootList/>

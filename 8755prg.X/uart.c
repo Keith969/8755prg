@@ -81,7 +81,7 @@ void uart_putc(uint8_t c)
     INTCONbits.GIEH = 0;
     
     // Set RTS false to prevent sending until TX buffer empty
-    PORTAbits.RA4 = 1;
+    PORTAbits.RA3 = 1;
     
     // Wait until TXREG ready
     while (PIR1bits.TXIF == 0) {
@@ -102,7 +102,7 @@ void uart_putc(uint8_t c)
     }
     
     // Set RTS true to allow sending
-    PORTAbits.RA4 = 0;
+    PORTAbits.RA3 = 0;
     
     // Enable global interrupts
     INTCONbits.GIEH = 1;
@@ -142,7 +142,7 @@ void uart_puts(uint8_t *s)
     INTCONbits.GIEH = 0;
     
     // Set RTS false to prevent sending until TX buffer empty
-    PORTAbits.RA4 = 1;
+    PORTAbits.RA3 = 1;
     
     // Wait until TXREG ready
     while (PIR1bits.TXIF == 0) {
@@ -169,7 +169,7 @@ void uart_puts(uint8_t *s)
     }
     
     // Set RTS true to allow sending
-    PORTAbits.RA4 = 0;
+    PORTAbits.RA3 = 0;
     
     // Enable global interrupts
     INTCONbits.GIEH = 1; 

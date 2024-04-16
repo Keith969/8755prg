@@ -47,31 +47,37 @@ void main(void) {
     // Initialise uart
     uart_init(115200);
     
-    // Set port A
-    TRISAbits.RA0 = 0;
-    TRISAbits.RA1 = 0;
-    PORTAbits.RA1 = 0; // red LED, RX interrupt
-    PORTAbits.RA0 = 0; // green LED, while loop
-    // Do not use RA3
+    // disable analog else weird things happen
+    ADCON0bits.ADON = 0;
+    ADCON1 = 0x0F;
+    
+    // Use port E for status LEDs
+    TRISEbits.RE0 = 0; // green LED, while loop
+    TRISEbits.RE1 = 0; // red LED, interrupt
+    
+    // Port A for control for now
     TRISAbits.RA2 = 1; // CTS is an active low input
-    TRISAbits.RA4 = 0; // RTS is an active low output
-    PORTAbits.RA5 = 0; // set it true
+    TRISAbits.RA3 = 0; // RTS is an active low output
+    PORTAbits.RA3 = 0; // set it true
 
     // Set port B - address 0-7
-    TRISB = 0x00;
+    //TRISB = 0x00;
     // Set port C - address 8-13
-    TRISC = 0x3F; 
+    //TRISC = 0x3F; 
     // Set port D - data 0-7
-    TRISD = 0x00;
+    //TRISD = 0x00;
     
-    // Loop while waiting for interrupts
+    uart_puts("Listening...\n");
+    
+    // Loop while waiting for commands
     // We flash a LED so we know we are listening...
     while (true) {
-        PORTAbits.RA0 = 1;
-        __delay_ms(100);      
-        PORTAbits.RA0 = 0;
-        PORTAbits.RA1 = 0;
-        __delay_ms(100);
+        PORTEbits.RE0 = 0;
+        __delay_ms(250);      
+        PORTEbits.RE0 = 1;
+        PORTEbits.RE1 = 0;
+        __delay_ms(250);
+        
         // If we set this in interrupt, it's because we have
         // 2 chars in the cmd buffer: a $ and cmd id.
         if (cmd_active) {
@@ -85,9 +91,12 @@ void main(void) {
             else if (buffer[1] == CMD_WRIT) {
                 do_write();
             }
+            else {
+                uart_puts("\nunknown cmd\n");
+            }
             bufptr = 0;
             cmd_active = false;
-        }
+        } 
     } 
 }
 
@@ -105,20 +114,27 @@ void __interrupt(high_priority) high_isr(void)
     bool ok = uart_getc(&c);
     if (c) {
         // set LED indicating we received a char
-        PORTAbits.RA1 = 1;
+        PORTEbits.RE1 = 1;
         
-        // Put received char in buffer   
-        buffer[bufptr++] = c;
+        // ignore CR/LF
+        if (c != '\n' && c != '\r') {
+            
+            // Put received char in buffer  
+            buffer[bufptr] = c;
 
-        // If we overshot the buffer size, reset it...
-        if (bufptr == BUFSIZE) {
-            bufptr = 0;
-        }
-        else {
-            if (buffer[0] == '$' && bufptr == 1) {
-                cmd_active=true;
+            // Our commands are only 2 chars long
+            if (bufptr >= BUFSIZE) {
+                bufptr = 0;
+                cmd_active=false;
             }
-        }    
+            else {
+                if (buffer[0] == '$' && bufptr == 1) {
+                    // We have a command
+                    cmd_active=true;
+                }
+            }  
+            bufptr++;
+        }
     }
     
     // Enable global interrupts
@@ -127,18 +143,20 @@ void __interrupt(high_priority) high_isr(void)
 
 void do_finish()
 {
-    uint8_t *s = (uint8_t *) "finish\n";
+    uint8_t *s = (uint8_t *) "\ncmd=finish\n";
     uart_puts(s);
 }
 
 void do_read()
 {
-    // Set up for reading
+    uint8_t *s = (uint8_t *) "\ncmd=read\n";
+    uart_puts(s);
 }
 
 void do_write()
 {
-    // Set up for writing
+    uint8_t *s = (uint8_t *) "\ncmd=write\n";
+    uart_puts(s);
 }
 
 

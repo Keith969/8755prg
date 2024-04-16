@@ -5,5 +5,4 @@ x64/*
 GeneratedFiles/*
 Makefile
 release/*
-/8755prg.X/dist/
-/8755prg.X/build/
+8755prg.X/*

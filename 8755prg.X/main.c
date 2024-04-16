@@ -16,6 +16,7 @@
 #include "conbits.h"
 #include "stdint.h"
 #include "string.h"
+#include "stdio.h"
 #include "uart.h"
 
 // cmds
@@ -60,12 +61,17 @@ void main(void) {
     TRISAbits.RA3 = 0; // RTS is an active low output
     PORTAbits.RA3 = 0; // set it true
 
-    // Set port B - address 0-7
-    //TRISB = 0x00;
-    // Set port C - address 8-13
-    //TRISC = 0x3F; 
-    // Set port D - data 0-7
-    //TRISD = 0x00;
+    // Port D for address bits AD0-A7
+    TRISD = 0x00;
+    // Port C bits 0,1,2 = A8-A10
+    TRISCbits.RC0 = 0;
+    TRISCbits.RC1 = 0;
+    TRISCbits.RC2 = 0;
+    
+    TRISB = 0x00;
+    // Port B0 = ALE
+    // Port B1 = CE2
+    // Port B2 = _IOR
     
     uart_puts("Listening...\n");
     
@@ -81,6 +87,10 @@ void main(void) {
         // If we set this in interrupt, it's because we have
         // 2 chars in the cmd buffer: a $ and cmd id.
         if (cmd_active) {
+            
+            // Disable global interrupts
+            INTCONbits.GIEH = 0;
+    
             // Do the cmd
             if (buffer[1] == CMD_DONE) {
                 do_finish();
@@ -92,10 +102,13 @@ void main(void) {
                 do_write();
             }
             else {
-                uart_puts("\nunknown cmd\n");
+                uart_puts("\nUnknown cmd\n");
             }
             bufptr = 0;
             cmd_active = false;
+            
+            // Enable global interrupts
+            INTCONbits.GIEH = 1;
         } 
     } 
 }
@@ -135,6 +148,10 @@ void __interrupt(high_priority) high_isr(void)
             }  
             bufptr++;
         }
+        else if (c == 0x03) {
+            // ctrl-C
+            cmd_active=false;
+        }
     }
     
     // Enable global interrupts
@@ -150,6 +167,56 @@ void do_finish()
 void do_read()
 {
     uint8_t *s = (uint8_t *) "\ncmd=read\n";
+    uart_puts(s);
+    uint16_t addr;
+    uint8_t ads[16];
+    
+    PORTEbits.RE0 = 0; // green led off
+    PORTEbits.RE1 = 1; // red led on
+        
+    for (addr = 0; addr < 2048; ++addr) {
+        if (cmd_active == false) {
+            s = (uint8_t *) "\nRead aborted\n";
+            uart_puts(s);
+            return;
+        }
+
+        // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
+        PORTD = addr & 0x00ff;
+        PORTCbits.RC0 = addr & 0x0100;
+        PORTCbits.RC1 = addr & 0x0200;
+        PORTCbits.RC2 = addr & 0x0400;
+        
+        // Timing critical code. At 20MHz xtal clock, instruction = 200nS
+        
+        // Set ALE hi
+        PORTBbits.RB0 = 1;
+        // Set CE2 hi
+        PORTBbits.RB1 = 1;
+        // Set ALE lo, 
+        PORTBbits.RB0 = 0;
+        NOP();
+        PORTBbits.RB1 = 0;
+        // Set _IOR/_RD lo, wait 100uS
+        PORTBbits.RB2 = 0;
+        NOP();
+        // Set port D to input, read it.
+        TRISD = 0xFF;
+        NOP();
+        uint8_t data = PORTD;
+        NOP();
+        // Set _IOR/_RD hi
+        PORTBbits.RB2 = 1;
+        NOP(); NOP();
+        // Set AS0-7 back to outputs (addresses)
+        TRISD = 0x00;
+        uart_puts("Data at address ");
+        sprintf(ads, "%x = ", addr);
+        uart_puts(ads);
+        sprintf(ads, "%x\n");
+        uart_puts(ads);
+    }
+    s = (uint8_t *) "\nDone read\n";
     uart_puts(s);
 }
 

@@ -57,26 +57,25 @@ void main(void) {
     TRISEbits.RE0 = 0; // green LED, while loop
     TRISEbits.RE1 = 0; // red LED, interrupt
     
-    // Port A for uart control (not used)
+    // Port A for uart control. Bits 0,1,4-7 spare.
     TRISAbits.RA2 = 1; // CTS is an active low input
     TRISAbits.RA3 = 0; // RTS is an active low output
     PORTAbits.RA3 = 0; // set it true
 
     // Port D for address bits AD0-A7
     TRISD = 0;
+    
     // Port C bits 0,1,2 = A8-A10
-    // (uart uses bits 6,7)
+    // (uart uses bits 6,7). Bits 3/4/5 spare.
     TRISC = 0b11000000;
     
-    // Port D for EPROM control
+    // Port B for EPROM control. Bits 4-7 spare.
     TRISB = 0;
     // Port B0 = ALE
     // Port B1 = CE2
     // Port B2 = _RD
     // Port B3 = PGM (switches +25v onto VDD pin)
     PORTBbits.RB3 = 0;
-    
-    uart_puts("Listening...\n");
     
     // Loop while waiting for commands
     // We flash a green LED so we know we are listening...
@@ -287,12 +286,13 @@ void do_read()
         PORTBbits.RB0 = 0;
         NOP();
         
-        // Set port D to input, read it.
+        // Set port D to input
         TRISD = 0xff;
-        // Set _RD_ lo - 
+        // Set _RD_ lo to enable reading
         PORTBbits.RB2 = 0;
         NOP();
-        // Read port D
+        
+        // Read port D - the eprom data.
         uint8_t data = PORTD;
 
         // Set _RD hi
@@ -374,14 +374,15 @@ void do_write()
         // Write the byte to port D
         PORTD = c;
         
-        // Activate pgm pulse for 50mS
+        // Activate PGM pulse for 50mS
         __delay_us(10);
         PORTBbits.RB3 = 1;
         __delay_ms(50);
         PORTBbits.RB3 = 0;
         __delay_us(10);
      
-        // We should now verify the byte is written...     
+        // We should now verify the byte is written,
+        // and if necessary try writing again until ok.
         
         // increment address
         addr++;

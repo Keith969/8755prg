@@ -13,6 +13,8 @@
 
 #include "uart.h"
 #include <xc.h>
+#include <stdarg.h>
+#include <string.h>
 
 // ****************************************************************************
 // Function         [ uart_init ]
@@ -75,7 +77,7 @@ void uart_init(const uint32_t baud_rate)
 // Function         [ uart_putc ]
 // Description      [ Send a character ]
 // ****************************************************************************
-void uart_putc(uint8_t c)
+void uart_putc(char c)
 {
     // Disable global interrupts
     INTCONbits.GIEH = 0;
@@ -85,11 +87,6 @@ void uart_putc(uint8_t c)
     
     // Wait until TXREG ready
     while (PIR1bits.TXIF == 0) {
-        NOP();
-    }
-
-    // If CTS is false i.e DTE not ready, wait
-    while (PORTAbits.RA2 == 1) {
         NOP();
     }
     
@@ -112,7 +109,7 @@ void uart_putc(uint8_t c)
 // Function         [ uart_getc ]
 // Description      [ Receive a char in c. Returns true if OK ]
 // ****************************************************************************
-bool uart_getc(uint8_t *c)
+bool uart_getc(char *c)
 {  
     // NULL if we had an error
     bool ok = false;
@@ -136,7 +133,7 @@ bool uart_getc(uint8_t *c)
 // Function         [ uart_puts ]
 // Description      [ Send a null terminated string ]
 // ****************************************************************************
-void uart_puts(uint8_t *s)
+void uart_puts(char *s)
 {
     // Disable global interrupts
     INTCONbits.GIEH = 0;
@@ -148,24 +145,14 @@ void uart_puts(uint8_t *s)
     while (PIR1bits.TXIF == 0) {
         NOP();
     }
-    
-    // If CTS is false i.e DTE not ready, wait
-    while (PORTAbits.RA2 == 1) {
-        NOP();
-    }
 
     // Put the char to send in transmit buffer
-    uint8_t *p = s;
+    char *p = s;
     while (*p) {
         TXREG = *p++;
         while(TXSTAbits.TRMT == 0) {
             NOP();
         }
-    }
-
-    // Wait for done
-    while(TXSTAbits.TRMT == 0) {
-        NOP();
     }
     
     // Set RTS true to allow sending
@@ -173,4 +160,20 @@ void uart_puts(uint8_t *s)
     
     // Enable global interrupts
     INTCONbits.GIEH = 1; 
+}
+
+// ****************************************************************************
+// Function         [ uart_printf ]
+// Description      [ Send a null terminated string ]
+// ****************************************************************************
+void uart_printf(const char *fmt, ...)
+{
+    char buf[64];
+    va_list ap;
+
+    va_start(ap, fmt);
+    // TODO. xc8 doesn't support this, sigh
+    //vsprintf( (const char *) buf, fmt, ap);
+    uart_puts(buf);
+    va_end(ap);
 }

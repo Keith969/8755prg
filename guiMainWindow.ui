@@ -44,9 +44,9 @@
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="verifyButton">
+             <widget class="QPushButton" name="checkButton">
               <property name="text">
-               <string>Verify Device</string>
+               <string>Check Device</string>
               </property>
              </widget>
             </item>
@@ -62,8 +62,8 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>499</width>
-               <height>240</height>
+               <width>479</width>
+               <height>230</height>
               </rect>
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -150,16 +150,6 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_3">
             <item>
-             <widget class="QCheckBox" name="rtsCts">
-              <property name="toolTip">
-               <string>Use RTS/CTS flow control.</string>
-              </property>
-              <property name="text">
-               <string>RTS/CTSflow control</string>
-              </property>
-             </widget>
-            </item>
-            <item>
              <spacer name="horizontalSpacer_3">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
@@ -171,6 +161,29 @@
                </size>
               </property>
              </spacer>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>Timeout</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="timeOut">
+              <property name="suffix">
+               <string>s</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>100</number>
+              </property>
+              <property name="value">
+               <number>10</number>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
@@ -188,7 +201,7 @@
      <x>0</x>
      <y>0</y>
      <width>553</width>
-     <height>26</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -228,6 +241,17 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <tabstops>
+  <tabstop>readButton</tabstop>
+  <tabstop>checkButton</tabstop>
+  <tabstop>writeButton</tabstop>
+  <tabstop>textEdit</tabstop>
+  <tabstop>tabWidget</tabstop>
+  <tabstop>serialPort</tabstop>
+  <tabstop>baudRate</tabstop>
+  <tabstop>timeOut</tabstop>
+  <tabstop>scrollArea</tabstop>
+ </tabstops>
  <resources>
   <include location="guiMainWindow.qrc"/>
  </resources>

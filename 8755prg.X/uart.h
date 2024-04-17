@@ -26,13 +26,16 @@ extern "C" {
 void uart_init(const uint32_t baud_rate);
 
 // Send a char from the UART
-void uart_putc(uint8_t c);
+void uart_putc(char c);
 
 // Send a string from the UART
-void uart_puts(uint8_t *s);
+void uart_puts(char *s);
 
 // receive a char from the UART
-bool  uart_getc(uint8_t *c);
+bool  uart_getc(char *c);
+
+// printf like
+void uart_printf(const char *fmt, ...);
 
 #ifdef	__cplusplus
 }

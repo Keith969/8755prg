@@ -78,6 +78,7 @@ SenderThread::run()
         if (currentPortNameChanged) {
             serial.close();
             serial.setPortName(currentPortName);
+            serial.setBaudRate(115200);
 
             if (!serial.open(QIODevice::ReadWrite)) {
                 emit error(tr("Can't open %1, error code %2")

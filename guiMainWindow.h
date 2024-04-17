@@ -13,6 +13,11 @@
 #include "senderthread.h"
 #include "receiverthread.h"
 
+#define CMD_DONE "$0"
+#define CMD_READ "$1"
+#define CMD_WRTE "$2"
+#define CMD_CHEK "$3"
+
 // *****************************************************************************
 // Class        [ guiMainWindow ]
 // Description  [ ] 
@@ -23,24 +28,24 @@ class guiMainWindow : public QMainWindow
 
 public:
     guiMainWindow(QWidget *parent = Q_NULLPTR);
+    ~guiMainWindow();
 
 public slots:
     void openHexFile();
     void saveHexFile();
     void quit();
     void read();
+    void check();
+    void write();
 
     void senderShowResponse(const QString &);
     void senderProcessError(const QString &);
     void senderProcessTimeout(const QString &);
 
-    void receiverShowRequest(const QString &);
-    void receiverProcessError(const QString &);
-    void receiverProcessTimeout(const QString &);
-
-
     void appendText(const QString& s) { ui.textEdit->append(s); }
     void clearText() { ui.textEdit->clear(); }
+
+    size_t hexSize() {return m_HexFile->hexSize();}
 
 private:
 
@@ -48,16 +53,14 @@ private:
     Ui::guiMainWindowClass ui;
 
     // The hex file structure
-    hexFile                m_HexFile;
+    hexFile              * m_HexFile;
 
     // Sender thread
     SenderThread           m_senderThread;
 
-    // Receiver thread
-    ReceiverThread         m_receiverThread;
-
     // Status bar
     QStatusBar             m_statusBar;
+    QLabel                 m_statusMsg;
 };
 
 #endif /* GUIMAINWINDOW_H */

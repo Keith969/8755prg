@@ -6,3 +6,5 @@ GeneratedFiles/*
 Makefile
 release/*
 8755prg.X/*
+8755prg.app.dSYM
+debug/*

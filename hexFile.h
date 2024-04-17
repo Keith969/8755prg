@@ -59,11 +59,15 @@ public:
 	bool                      writeHex(const QString& hexFileName);
 	void                      setMainWindow(guiMainWindow* win) { m_MainWindow = win; }
 	guiMainWindow           * mainWindow() { return m_MainWindow; }
+    size_t                    hexSize() { return m_HexData.size(); }
+    std::vector<hexDataChunk> &hexData() { return m_HexData; }
+    void                      addChunk(const hexDataChunk &c) {m_HexData.push_back(c);}
+    void                      clear() { m_HexData.clear();}
 
 private:
 
-	std::vector<hexDataChunk> m_HexData;     // The hex data
-	guiMainWindow           * m_MainWindow;  // 
+    std::vector<hexDataChunk> m_HexData;
+    guiMainWindow           * m_MainWindow;
 };
 
 #endif /* HEXFILE_H */

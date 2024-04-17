@@ -6,31 +6,60 @@
  
 
 #include <QtWidgets/QFileDialog>
+#include <QMessageBox>
+#include <QSerialPortInfo>
 #include "guiMainWindow.h"
 
+// *****************************************************************************
+// Function     [ constructor ]
+// Description  [ ]
+// *****************************************************************************
 guiMainWindow::guiMainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     ui.setupUi(this);
     // Set the textEdit font to fixed spacing
     ui.textEdit->setFontFamily("Courier");
-    m_HexFile.setMainWindow(this);
 
     // Set connections
     QObject::connect(ui.actionOpen_HEX_file, SIGNAL(triggered()), this, SLOT(openHexFile()));
     QObject::connect(ui.actionSave_HEX_file, SIGNAL(triggered()), this, SLOT(saveHexFile()));
     QObject::connect(ui.actionQuit,          SIGNAL(triggered()), this, SLOT(quit()));
-    QObject::connect(ui.readButton,          SIGNAL(pressed()),   this, SLOT(read));
+    QObject::connect(ui.readButton,          SIGNAL(pressed()),   this, SLOT(read()));
+    QObject::connect(ui.checkButton,         SIGNAL(pressed()),   this, SLOT(check()));
+    QObject::connect(ui.writeButton,         SIGNAL(pressed()),   this, SLOT(write()));
 
-    // Sender thread
+    // Sender read thread
     QObject::connect(&m_senderThread,        SIGNAL(response(const QString &)),  this, SLOT(senderShowResponse(const QString &)));
     QObject::connect(&m_senderThread,        SIGNAL(error(const QString &)),     this, SLOT(senderProcessError(const QString &)));
     QObject::connect(&m_senderThread,        SIGNAL(timeout(const QString &)),   this, SLOT(senderProcessTimeout(const QString &)));
 
-    // Receiver thread
-    QObject::connect(&m_receiverThread,      SIGNAL(request(const QString &)),   this, SLOT(receiverShowRequest(const QString &)));
-    QObject::connect(&m_receiverThread,      SIGNAL(error(const QString &)),     this, SLOT(receiverProcessError(const QString &)));
-    QObject::connect(&m_receiverThread,      SIGNAL(timeout(const QString &)),   this, SLOT(receiverProcessTimeout(const QString &)));
+    // The serial port
+    const auto infos = QSerialPortInfo::availablePorts();
+    for (const QSerialPortInfo &info : infos) {
+        QString portName = info.portName();
+        if (! portName.contains("bluetooth", Qt::CaseInsensitive) && ! portName.contains("BLTH", Qt::CaseInsensitive)) {
+            ui.serialPort->addItem(info.portName());
+        }
+    }
+
+    // We only allow this baud rate for now
+    ui.baudRate->addItem("115200");
+
+    this->setStatusBar(&m_statusBar);
+    statusBar()->showMessage("Ready");
+
+    m_HexFile = new hexFile;
+    m_HexFile->setMainWindow(this);
+}
+
+// *****************************************************************************
+// Function     [ cdestructor ]
+// Description  [ ]
+// *****************************************************************************
+guiMainWindow::~guiMainWindow()
+{
+    delete m_HexFile;
 }
 
 // *****************************************************************************
@@ -40,8 +69,8 @@ guiMainWindow::guiMainWindow(QWidget *parent)
 void
 guiMainWindow::openHexFile()
 {
-    QString fileName = QFileDialog::getOpenFileName(this, "Open HEX File...", ".", "*.hex");   
-    m_HexFile.readHex(fileName);
+    QString fileName = QFileDialog::getOpenFileName(this, "Open HEX File...", ".", "*.hex");
+    m_HexFile->readHex(fileName);
 }
 
 // *****************************************************************************
@@ -55,17 +84,147 @@ guiMainWindow::saveHexFile()
     if (false == fileName.endsWith(".hex")) {
         fileName += ".hex";
     }
-    m_HexFile.writeHex(fileName);
+
+    // Clear any existing hex file
+    m_HexFile->clear();
+
+    // Read the textEdit and fill hexfile
+    QString text = ui.textEdit->toPlainText();
+    QStringList lines = text.split("\n", Qt::SkipEmptyParts);
+
+    int16_t address=0;
+    const int8_t blocksize = 16;
+    hexDataChunk chunk;
+    bool ok=false;
+
+    // foreach line
+    for (auto line_iter = lines.begin(); line_iter != lines.end(); ++line_iter) {
+        QString line = *line_iter;
+
+        // split lines by spaces
+        QStringList textlist = line.split(" ", Qt::SkipEmptyParts);
+        for (auto token_iter = textlist.begin(); token_iter != textlist.end(); ++token_iter) {
+
+            QString addr = *token_iter;
+            if (addr.contains(QChar(':'))) {
+                addr.remove(':');
+                address = addr.toInt(&ok, 16);
+                token_iter++;
+            }
+
+            int16_t checksum=0;
+            chunk.setByteCount(blocksize);
+            checksum += blocksize;
+            chunk.setAddress(address);
+            checksum += address & 0xff;
+            checksum += (address >> 8) & 0xff;
+            chunk.setRecordType(0);
+            checksum += 0;
+            std::vector<uint8_t> data;
+            for (int32_t i=0; i < blocksize; ++i) {
+                QString item = *token_iter;
+
+                uint8_t d = (uint8_t) item.toUShort(&ok, 16);
+                data.push_back(d);
+                checksum += d;
+                if (!ok) {
+                    return;
+                }
+            }
+            chunk.setData(data);
+            checksum = ((checksum >> 8) & 0xff) + 1;
+            chunk.setCheckSum(checksum);
+            address += blocksize;
+            m_HexFile->addChunk(chunk);
+        }
+    }
+    // Write the last chunk
+
+    chunk.setByteCount(0);
+    chunk.setAddress(0);
+    chunk.setRecordType(1);
+    chunk.setCheckSum(0xff);
+
+    m_HexFile->writeHex(fileName);
 }
 
 // *****************************************************************************
 // Function     [ read ]
-// Description  [ ]
+// Description  [ Send a read command to the PIC ]
 // *****************************************************************************
 void
 guiMainWindow::read()
 {
+    QString portName = ui.serialPort->currentText();
+    int timeout = ui.timeOut->value() * 1000;
 
+    statusBar()->showMessage(QString("Status: Running, connected to port %1.")
+                                 .arg(portName));
+    qApp->processEvents();
+
+    m_senderThread.transaction(portName, timeout, CMD_READ);
+
+    statusBar()->showMessage("Ready");
+}
+
+// *****************************************************************************
+// Function     [ check ]
+// Description  [ ]
+// *****************************************************************************
+void
+guiMainWindow::check()
+{
+    QString portName = ui.serialPort->currentText();
+    int timeout = ui.timeOut->value() * 1000;
+
+    statusBar()->showMessage(QString("Status: Running, connected to port %1.")
+                                 .arg(portName));
+    qApp->processEvents();
+
+    m_senderThread.transaction(portName, timeout, CMD_CHEK);
+
+    statusBar()->showMessage("Ready");
+}
+
+// *****************************************************************************
+// Function     [ write ]
+// Description  [ ]
+// *****************************************************************************
+void
+guiMainWindow::write()
+{
+    if (hexSize() > 0) {
+        QString portName = ui.serialPort->currentText();
+        int timeout = ui.timeOut->value() * 1000;
+
+        statusBar()->showMessage(QString("Status: Running, connected to port %1.")
+                                     .arg(portName));
+        qApp->processEvents();
+
+        QString request(CMD_WRTE);
+        request.append(" ");
+
+        // Need to send as bytes, space separated.
+        std::vector<hexDataChunk> hData = m_HexFile->hexData();
+
+        for (auto iter = hData.begin(); iter != hData.end(); ++iter) {
+            hexDataChunk chunk = *iter;
+            std::vector<uint8_t> data = chunk.data();
+            uint8_t count = chunk.byteCount();
+            for (int8_t i=0; i < count; ++i) {
+                request.append(QChar(data.at(i)));
+                request.append(" ");
+            }
+        }
+
+        m_senderThread.transaction(portName, timeout, request);
+
+        statusBar()->showMessage("Ready");
+    }
+    else {
+        clearText();
+        appendText("No HEX data - please open a HEX file!\n");
+    }
 }
 
 // *****************************************************************************
@@ -85,7 +244,8 @@ guiMainWindow::quit()
 void
 guiMainWindow::senderShowResponse(const QString &s)
 {
-
+    clearText();
+    appendText(s);
 }
 
 // *****************************************************************************
@@ -95,7 +255,8 @@ guiMainWindow::senderShowResponse(const QString &s)
 void
 guiMainWindow::senderProcessError(const QString &s)
 {
-
+    QString message = QString("Error %1").arg(s);
+    QMessageBox::warning(nullptr, "Sender error", message);
 }
 
 // *****************************************************************************
@@ -105,35 +266,7 @@ guiMainWindow::senderProcessError(const QString &s)
 void
 guiMainWindow::senderProcessTimeout(const QString &s)
 {
-
+    QString message = QString("Timeout %1").arg(s);
+    QMessageBox::warning(nullptr, "Sender timeout", message);
 }
 
-// *****************************************************************************
-// Function     [ receiverShowRequest ]
-// Description  [ ]
-// *****************************************************************************
-void
-guiMainWindow::receiverShowRequest(const QString &s)
-{
-
-}
-
-// *****************************************************************************
-// Function     [ receiverProcessError ]
-// Description  [ ]
-// *****************************************************************************
-void
-guiMainWindow::receiverProcessError(const QString &s)
-{
-
-}
-
-// *****************************************************************************
-// Function     [ receiverProcessTimeout ]
-// Description  [ ]
-// *****************************************************************************
-void
-guiMainWindow::receiverProcessTimeout(const QString &s)
-{
-
-}

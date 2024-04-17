@@ -3,12 +3,12 @@
 // Description  [ Implementation of the guiMainWindow class ]
 // Author       [ Keith Sabine ]
 // *****************************************************************************
- 
+
+#include "guiMainWindow.h"
 
 #include <QtWidgets/QFileDialog>
 #include <QMessageBox>
 #include <QSerialPortInfo>
-#include "guiMainWindow.h"
 
 // *****************************************************************************
 // Function     [ constructor ]
@@ -34,10 +34,11 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     QObject::connect(&m_senderThread,        SIGNAL(error(const QString &)),     this, SLOT(senderProcessError(const QString &)));
     QObject::connect(&m_senderThread,        SIGNAL(timeout(const QString &)),   this, SLOT(senderProcessTimeout(const QString &)));
 
-    // The serial port
+    // Stuff the serial pport combo box
     const auto infos = QSerialPortInfo::availablePorts();
     for (const QSerialPortInfo &info : infos) {
         QString portName = info.portName();
+        // Lets ignore bluetooth stuff...
         if (! portName.contains("bluetooth", Qt::CaseInsensitive) && ! portName.contains("BLTH", Qt::CaseInsensitive)) {
             ui.serialPort->addItem(info.portName());
         }
@@ -75,7 +76,7 @@ guiMainWindow::openHexFile()
 
 // *****************************************************************************
 // Function     [ saveHexFile ]
-// Description  [ ]
+// Description  [ Save the contents of the textEdit to a hex file ]
 // *****************************************************************************
 void
 guiMainWindow::saveHexFile()
@@ -92,7 +93,7 @@ guiMainWindow::saveHexFile()
     QString text = ui.textEdit->toPlainText();
     QStringList lines = text.split("\n", Qt::SkipEmptyParts);
 
-    int16_t address=0;
+    uint16_t address=0;
     const int8_t blocksize = 16;
     hexDataChunk chunk;
     bool ok=false;
@@ -108,11 +109,11 @@ guiMainWindow::saveHexFile()
             QString addr = *token_iter;
             if (addr.contains(QChar(':'))) {
                 addr.remove(':');
-                address = addr.toInt(&ok, 16);
+                address = addr.toUShort(&ok, 16);
                 token_iter++;
             }
 
-            int16_t checksum=0;
+            uint16_t checksum=0;
             chunk.setByteCount(blocksize);
             checksum += blocksize;
             chunk.setAddress(address);
@@ -128,6 +129,8 @@ guiMainWindow::saveHexFile()
                 data.push_back(d);
                 checksum += d;
                 if (!ok) {
+                    QString message = QString("Invalid byte %1").arg(item);
+                    QMessageBox::warning(nullptr, "Not a valid hex value", message);
                     return;
                 }
             }
@@ -138,12 +141,6 @@ guiMainWindow::saveHexFile()
             m_HexFile->addChunk(chunk);
         }
     }
-    // Write the last chunk
-
-    chunk.setByteCount(0);
-    chunk.setAddress(0);
-    chunk.setRecordType(1);
-    chunk.setCheckSum(0xff);
 
     m_HexFile->writeHex(fileName);
 }
@@ -162,6 +159,7 @@ guiMainWindow::read()
                                  .arg(portName));
     qApp->processEvents();
 
+    // Send the cmd.
     m_senderThread.transaction(portName, timeout, CMD_READ);
 
     statusBar()->showMessage("Ready");
@@ -181,6 +179,7 @@ guiMainWindow::check()
                                  .arg(portName));
     qApp->processEvents();
 
+    // Send the cmd.
     m_senderThread.transaction(portName, timeout, CMD_CHEK);
 
     statusBar()->showMessage("Ready");
@@ -188,12 +187,12 @@ guiMainWindow::check()
 
 // *****************************************************************************
 // Function     [ write ]
-// Description  [ ]
+// Description  [ Write the data we read in from a hex file to the PIC ]
 // *****************************************************************************
 void
 guiMainWindow::write()
 {
-    if (hexSize() > 0) {
+    if (size() > 0) {
         QString portName = ui.serialPort->currentText();
         int timeout = ui.timeOut->value() * 1000;
 
@@ -201,6 +200,7 @@ guiMainWindow::write()
                                      .arg(portName));
         qApp->processEvents();
 
+        // Send the cmd, followed by the data.
         QString request(CMD_WRTE);
         request.append(" ");
 

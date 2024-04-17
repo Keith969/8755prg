@@ -11,7 +11,6 @@
 #include "ui_guiMainWindow.h"
 #include "hexFile.h"
 #include "senderthread.h"
-#include "receiverthread.h"
 
 #define CMD_DONE "$0"
 #define CMD_READ "$1"
@@ -20,7 +19,7 @@
 
 // *****************************************************************************
 // Class        [ guiMainWindow ]
-// Description  [ ] 
+// Description  [ ]
 // *****************************************************************************
 class guiMainWindow : public QMainWindow
 {
@@ -45,7 +44,7 @@ public slots:
     void appendText(const QString& s) { ui.textEdit->append(s); }
     void clearText() { ui.textEdit->clear(); }
 
-    size_t hexSize() {return m_HexFile->hexSize();}
+    size_t size() {return m_HexFile->size();}
 
 private:
 

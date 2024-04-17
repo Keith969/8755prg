@@ -7,7 +7,7 @@
 #include <QTime>
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ constructor ]
 // Description  [ ]
 // *****************************************************************************
 SenderThread::SenderThread(QObject *parent) :
@@ -16,7 +16,7 @@ SenderThread::SenderThread(QObject *parent) :
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ destructor ]
 // Description  [ ]
 // *****************************************************************************
 SenderThread::~SenderThread()
@@ -29,8 +29,8 @@ SenderThread::~SenderThread()
 }
 
 // *****************************************************************************
-// Function     [ ]
-// Description  [ ]
+// Function     [ transaction ]
+// Description  [ The transaction for the thread to carry out. ]
 // *****************************************************************************
 void
 SenderThread::transaction(const QString &portName, int waitTimeout, const QString &request)
@@ -47,8 +47,8 @@ SenderThread::transaction(const QString &portName, int waitTimeout, const QStrin
 }
 
 // *****************************************************************************
-// Function     [ ]
-// Description  [ ]
+// Function     [ run ]
+// Description  [ The thread's run body. Called when we start() the thread. ]
 // *****************************************************************************
 void
 SenderThread::run()
@@ -78,7 +78,8 @@ SenderThread::run()
         if (currentPortNameChanged) {
             serial.close();
             serial.setPortName(currentPortName);
-            serial.setBaudRate(115200);
+            serial.setBaudRate(m_baudrate);
+            // TODO: flow control?
 
             if (!serial.open(QIODevice::ReadWrite)) {
                 emit error(tr("Can't open %1, error code %2")
@@ -86,11 +87,11 @@ SenderThread::run()
                 return;
             }
         }
-        // write request
+        // write request to the PIC
         const QByteArray requestData = currentRequest.toUtf8();
         serial.write(requestData);
         if (serial.waitForBytesWritten(m_waitTimeout)) {
-            // read response
+            // read response from the PIC
             if (serial.waitForReadyRead(currentWaitTimeout)) {
                 QByteArray responseData = serial.readAll();
                 while (serial.waitForReadyRead(10))

@@ -32,6 +32,7 @@ private:
     QMutex         m_mutex;
     QWaitCondition m_cond;
     bool           m_quit = false;
+    int32_t        m_baudrate = 115200;
 };
 
 #endif /* SENDERTHREAD_H */

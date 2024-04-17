@@ -6,21 +6,22 @@
 
 #include "hexFile.h"
 #include "guiMainWindow.h"
+
 #include <QFile>
 #include <QtWidgets/QMessageBox>
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ byteCount ]
 // Description  [ ]
 // *****************************************************************************
-inline uint8_t         
-hexDataChunk::byteCount()
+inline uint8_t
+hexDataChunk::byteCount() const
 {
     return m_ByteCount;
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ setByteCount ]
 // Description  [ ]
 // *****************************************************************************
 inline void
@@ -30,17 +31,17 @@ hexDataChunk::setByteCount(uint8_t n)
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ recordType ]
 // Description  [ ]
 // *****************************************************************************
 inline uint8_t
-hexDataChunk::recordType()
+hexDataChunk::recordType() const
 {
     return m_RecordType;
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ setRecordType ]
 // Description  [ ]
 // *****************************************************************************
 inline void
@@ -50,17 +51,17 @@ hexDataChunk::setRecordType(uint8_t n)
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ address ]
 // Description  [ ]
 // *****************************************************************************
 inline uint16_t
-hexDataChunk::address()
+hexDataChunk::address() const
 {
     return m_Address;
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ setAddress ]
 // Description  [ ]
 // *****************************************************************************
 inline void
@@ -70,17 +71,17 @@ hexDataChunk::setAddress(uint16_t n)
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ checkSum ]
 // Description  [ ]
 // *****************************************************************************
 inline uint8_t
-hexDataChunk::checkSum()
+hexDataChunk::checkSum() const
 {
     return m_Checksum;
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ setCheckSum ]
 // Description  [ ]
 // *****************************************************************************
 inline void
@@ -90,7 +91,7 @@ hexDataChunk::setCheckSum(uint8_t n)
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ data ]
 // Description  [ ]
 // *****************************************************************************
 inline std::vector<uint8_t> &
@@ -100,20 +101,80 @@ hexDataChunk::data()
 }
 
 // *****************************************************************************
-// Function     [ ]
+// Function     [ setData ]
 // Description  [ ]
 // *****************************************************************************
-inline void            
+inline void
 hexDataChunk::setData(const std::vector<uint8_t> &d)
 {
     m_Data = d;
 }
 
 // *****************************************************************************
+// Function     [ setMainWindow ]
+// Description  [ ]
+// *****************************************************************************
+void
+hexFile::setMainWindow(guiMainWindow* win)
+{
+    m_MainWindow = win;
+}
+
+// *****************************************************************************
+// Function     [ mainWindow ]
+// Description  [ ]
+// *****************************************************************************
+guiMainWindow*
+hexFile::mainWindow()
+{
+    return m_MainWindow;
+}
+
+// *****************************************************************************
+// Function     [ size ]
+// Description  [ ]
+// *****************************************************************************
+size_t
+hexFile::size()
+{
+    return m_HexData.size();
+}
+
+// *****************************************************************************
+// Function     [ hexData ]
+// Description  [ ]
+// *****************************************************************************
+std::vector<hexDataChunk> &
+hexFile::hexData()
+{
+    return m_HexData;
+}
+
+// *****************************************************************************
+// Function     [ addChunk ]
+// Description  [ ]
+// *****************************************************************************
+void
+hexFile::addChunk(const hexDataChunk &c)
+{
+    m_HexData.push_back(c);
+}
+
+// *****************************************************************************
+// Function     [ clear ]
+// Description  [ ]
+// *****************************************************************************
+void
+hexFile::clear()
+{
+    m_HexData.clear();
+}
+
+// *****************************************************************************
 // Function     [ readHex ]
 // Description  [ Read a hex file, setting up the data ]
 // *****************************************************************************
-bool 
+bool
 hexFile::readHex(const QString& hexFileName)
 {
     mainWindow()->clearText();
@@ -127,7 +188,7 @@ hexFile::readHex(const QString& hexFileName)
 
         while (!fi.atEnd()) {
             hexDataChunk chunk;
-            
+
             // Read a line
             QString line = fi.readLine();
             // Append it to the msg area
@@ -263,7 +324,7 @@ hexFile::readHex(const QString& hexFileName)
 // Function     [ writeHex ]
 // Description  [ Write the hexData buffer to disk ]
 // *****************************************************************************
-bool 
+bool
 hexFile::writeHex(const QString& hexFileName)
 {
     QFile fi(hexFileName);

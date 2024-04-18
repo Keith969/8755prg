@@ -37,16 +37,16 @@ public slots:
     void check();
     void write();
 
-    void senderShowResponse(const QString &);
-    void senderProcessError(const QString &);
-    void senderProcessTimeout(const QString &);
+    void                   senderShowResponse(const QString &);
+    void                   senderProcessError(const QString &);
+    void                   senderProcessTimeout(const QString &);
 
-    void appendText(const QString& s) { ui.textEdit->append(s); }
-    void clearText() { ui.textEdit->clear(); }
-
-    size_t size() {return m_HexFile->size();}
+    void                   appendText(const QString& s) { ui.textEdit->append(s); }
+    void                   clearText() { ui.textEdit->clear(); }
 
 private:
+    size_t                 size() {return m_HexFile->size();}
+    int32_t                getFlowControl();
 
     // ui
     Ui::guiMainWindowClass ui;

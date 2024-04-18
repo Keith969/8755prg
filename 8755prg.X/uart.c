@@ -124,6 +124,7 @@ bool uart_getc(char *c)
     }
     else {
         *c = RCREG & 0x7f;    // strip hi bit
+        ok = true;
     } 
     
     return ok;

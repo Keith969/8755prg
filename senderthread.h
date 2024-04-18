@@ -16,23 +16,28 @@ public:
     explicit SenderThread(QObject *parent = nullptr);
     ~SenderThread();
 
-    void transaction(const QString &portName, int waitTimeout, const QString &request);
+    void                      transaction(const QString &portName, const QString &request, int waitTimeout=10000, int baudRate=115200, int flowControl=0 );
+    size_t                    bytesSent() {return m_bytesSent;}
+    size_t                    bytesReceived() {m_bytesReceived;}
 
 signals:
-    void response(const QString &s);
-    void error(const QString &s);
-    void timeout(const QString &s);
+    void                      response(const QString &s);
+    void                      error(const QString &s);
+    void                      timeout(const QString &s);
 
 private:
-    void run() override;
+    void                      run() override;
 
-    QString        m_portName;
-    QString        m_request;
-    int            m_waitTimeout = 0;
-    QMutex         m_mutex;
-    QWaitCondition m_cond;
-    bool           m_quit = false;
-    int32_t        m_baudrate = 115200;
+    QString                   m_portName;
+    QString                   m_request;
+    int                       m_waitTimeout = 0;
+    QMutex                    m_mutex;
+    QWaitCondition            m_cond;
+    bool                      m_quit = false;
+    int32_t                   m_baudrate = 115200;
+    int32_t                   m_flowControl = 0;
+    size_t                    m_bytesSent;
+    size_t                    m_bytesReceived;
 };
 
 #endif /* SENDERTHREAD_H */

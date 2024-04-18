@@ -58,9 +58,9 @@ void main(void) {
     TRISEbits.RE1 = 0; // red LED, interrupt
     
     // Port A for uart control. Bits 0,1,4-7 spare.
-    TRISAbits.RA2 = 1; // CTS is an active low input
-    TRISAbits.RA3 = 0; // RTS is an active low output
-    PORTAbits.RA3 = 0; // set it true
+    TRISAbits.RA2 = 0; // CTS is an active low output
+    TRISAbits.RA3 = 1; // RTS is an active low input
+    PORTAbits.RA2 = 0; // assert CTS
 
     // Port D for address bits AD0-A7
     TRISD = 0;
@@ -81,6 +81,7 @@ void main(void) {
     // We flash a green LED so we know we are listening...
     while (true) {
         PORTEbits.RE0 = 0;
+        PORTEbits.RE1 = 0;
         __delay_ms(250);      
         PORTEbits.RE0 = 1;
         __delay_ms(250);
@@ -110,8 +111,9 @@ void main(void) {
             }
             else {
                 uart_puts("\nUnknown cmd\n");
+                buffer[0]='$';
+                buffer[1]=0;
             }
-            PORTEbits.RE1 = 0;
             bufptr = 0;
             cmd_active = false;
             
@@ -132,7 +134,7 @@ void __interrupt(high_priority) high_isr(void)
     
     // Echo the character received
     bool ok = uart_getc(&c);
-    if (c) {
+    if (ok) {
         // set LED indicating we received a char
         PORTEbits.RE1 = 1;
         
@@ -182,9 +184,6 @@ void do_blank()
     char ads[16];
     bool ok = true;
     char *s;
-    
-    PORTEbits.RE0 = 0; // green led off
-    PORTEbits.RE1 = 1; // red led on
         
     // Set CE2 hi to enable reading
     PORTBbits.RB1 = 1;
@@ -257,9 +256,6 @@ void do_read()
     char ads[16];
     uint8_t col=0;
     char *s;
-    
-    PORTEbits.RE0 = 0; // green led off
-    PORTEbits.RE1 = 1; // red led on
         
     // Set CE2 hi to enable reading
     PORTBbits.RB1 = 1;
@@ -321,8 +317,8 @@ void do_read()
     // Set CE2 lo to disable reading
     PORTBbits.RB1 = 0;
     
-    s = "CMD_DONE\n";
-    uart_puts(s);
+    //s = "CMD_DONE\n";
+    //uart_puts(s);
 }
 
 // ****************************************************************************
@@ -333,9 +329,6 @@ void do_write()
 {
     uint16_t addr = 0;
     char *s;
-    
-    PORTEbits.RE0 = 0; // green led off
-    PORTEbits.RE1 = 1; // red led on
         
     // Set port D to output
     TRISD = 0x00;
@@ -356,7 +349,9 @@ void do_write()
 
         // The sender sends a byte stream.
         char c;
-        uart_getc(&c);
+        while (! uart_getc(&c)) {
+            __delay_us(10);
+        }
         
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
         PORTD = addr & 0x00ff;
@@ -377,7 +372,9 @@ void do_write()
         // Activate PGM pulse for 50mS
         __delay_us(10);
         PORTBbits.RB3 = 1;
+        //PORTAbits.RA2 = 1; // disable cts
         __delay_ms(50);
+        //PORTAbits.RA2 = 0; // enable cts
         PORTBbits.RB3 = 0;
         __delay_us(10);
      

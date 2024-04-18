@@ -4,7 +4,7 @@ DESTDIR = .
 
 QT += core gui widgets serialport
 
-DEPENDPATH += .
+DEPENDPATH += . ./GeneratedFiles
 MOC_DIR += ./GeneratedFiles
 UI_DIR += ./GeneratedFiles
 OBJECTS_DIR += release

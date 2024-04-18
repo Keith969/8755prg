@@ -33,12 +33,16 @@ SenderThread::~SenderThread()
 // Description  [ The transaction for the thread to carry out. ]
 // *****************************************************************************
 void
-SenderThread::transaction(const QString &portName, int waitTimeout, const QString &request)
+SenderThread::transaction(const QString &portName, const QString &request, int waitTimeout, int baudRate, int flowControl)
 {
     const QMutexLocker locker(&m_mutex);
     m_portName = portName;
     m_waitTimeout = waitTimeout;
+    m_baudrate = baudRate;
+    m_flowControl = flowControl;
     m_request = request;
+    m_bytesSent = 0;
+    m_bytesReceived = 0;
 
     if (!isRunning())
         start();
@@ -79,7 +83,7 @@ SenderThread::run()
             serial.close();
             serial.setPortName(currentPortName);
             serial.setBaudRate(m_baudrate);
-            // TODO: flow control?
+            serial.setFlowControl((QSerialPort::FlowControl) m_flowControl);
 
             if (!serial.open(QIODevice::ReadWrite)) {
                 emit error(tr("Can't open %1, error code %2")
@@ -90,12 +94,18 @@ SenderThread::run()
         // write request to the PIC
         const QByteArray requestData = currentRequest.toUtf8();
         serial.write(requestData);
+
+        // if we got a response...
         if (serial.waitForBytesWritten(m_waitTimeout)) {
+
             // read response from the PIC
             if (serial.waitForReadyRead(currentWaitTimeout)) {
+
                 QByteArray responseData = serial.readAll();
-                while (serial.waitForReadyRead(10))
+
+                while (serial.waitForReadyRead(100)) {
                     responseData += serial.readAll();
+                }
 
                 const QString response = QString::fromUtf8(responseData);
                 emit this->response(response);
@@ -107,6 +117,7 @@ SenderThread::run()
             emit timeout(tr("Wait write request timeout %1")
                          .arg(QTime::currentTime().toString()));
         }
+
         m_mutex.lock();
         m_cond.wait(&m_mutex);
         if (currentPortName != m_portName) {

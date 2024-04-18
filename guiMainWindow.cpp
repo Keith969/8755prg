@@ -113,7 +113,7 @@ guiMainWindow::saveHexFile()
                 token_iter++;
             }
 
-            uint16_t checksum=0;
+            uint32_t checksum=0;
             chunk.setByteCount(blocksize);
             checksum += blocksize;
             chunk.setAddress(address);
@@ -135,14 +135,29 @@ guiMainWindow::saveHexFile()
                 }
             }
             chunk.setData(data);
-            checksum = ((checksum >> 8) & 0xff) + 1;
-            chunk.setCheckSum(checksum);
+            uint8_t lsb = ~(checksum & 0xff)+1;
+            chunk.setCheckSum(lsb);
             address += blocksize;
             m_HexFile->addChunk(chunk);
         }
     }
 
     m_HexFile->writeHex(fileName);
+}
+
+// *****************************************************************************
+// Function     [ getFlowControl ]
+// Description  [  ]
+// *****************************************************************************
+int32_t
+guiMainWindow::getFlowControl()
+{
+    if (ui.flowNone->isChecked())
+        return 0;
+    else if (ui.flowRtsCts->isChecked())
+        return 1;
+    else if (ui.flowXonXoff->isChecked())
+        return 2;
 }
 
 // *****************************************************************************
@@ -154,13 +169,14 @@ guiMainWindow::read()
 {
     QString portName = ui.serialPort->currentText();
     int timeout = ui.timeOut->value() * 1000;
+    int baudRate = ui.baudRate->currentText().toInt();
+    int flowControl = getFlowControl();
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
-    qApp->processEvents();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, timeout, CMD_READ);
+    m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Ready");
 }
@@ -174,13 +190,15 @@ guiMainWindow::check()
 {
     QString portName = ui.serialPort->currentText();
     int timeout = ui.timeOut->value() * 1000;
+    int baudRate = ui.baudRate->currentText().toInt();
+    int flowControl = getFlowControl();
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
     qApp->processEvents();
 
     // Send the cmd.
-    m_senderThread.transaction(portName, timeout, CMD_CHEK);
+    m_senderThread.transaction(portName, CMD_CHEK, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Ready");
 }
@@ -195,10 +213,11 @@ guiMainWindow::write()
     if (size() > 0) {
         QString portName = ui.serialPort->currentText();
         int timeout = ui.timeOut->value() * 1000;
+        int baudRate = ui.baudRate->currentText().toInt();
+        int flowControl = getFlowControl();
 
         statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                      .arg(portName));
-        qApp->processEvents();
 
         // Send the cmd, followed by the data.
         QString request(CMD_WRTE);
@@ -217,7 +236,11 @@ guiMainWindow::write()
             }
         }
 
-        m_senderThread.transaction(portName, timeout, request);
+        m_senderThread.transaction(portName, request, timeout, baudRate, flowControl);
+
+        size_t sent = m_senderThread.bytesSent();
+        size_t received = m_senderThread.bytesReceived();
+        qApp->processEvents();
 
         statusBar()->showMessage("Ready");
     }

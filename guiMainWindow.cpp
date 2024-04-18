@@ -223,7 +223,7 @@ guiMainWindow::write()
         QString request(CMD_WRTE);
         request.append(" ");
 
-        // Need to send as bytes, space separated.
+        // Send the data as bytes, using pairs of chars.
         std::vector<hexDataChunk> hData = m_HexFile->hexData();
 
         for (auto iter = hData.begin(); iter != hData.end(); ++iter) {
@@ -232,7 +232,6 @@ guiMainWindow::write()
             uint8_t count = chunk.byteCount();
             for (int8_t i=0; i < count; ++i) {
                 request.append(QChar(data.at(i)));
-                request.append(" ");
             }
         }
 

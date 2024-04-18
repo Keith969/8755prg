@@ -43,6 +43,23 @@ extern void do_write();
 extern void do_blank();
 
 // ****************************************************************************
+// convert char to hex digit
+uint8_t charToHexDigit(char c)
+{
+  if (c >= 'A')
+    return c - 'A' + 10;
+  else
+    return c - '0';
+}
+
+// ****************************************************************************
+// convert a two char string to uint8_t
+uint8_t stringToByte(char c[2])
+{
+  return charToHexDigit(c[0]) * 16 + charToHexDigit(c[1]);
+}
+
+// ****************************************************************************
 // main
 void main(void) {
 
@@ -98,14 +115,21 @@ void main(void) {
                 do_finish();
             }
             else if (buffer[1] == CMD_READ) {
+                // turn on red LED
                 PORTEbits.RE1 = 1;
                 do_read();
             }
             else if (buffer[1] == CMD_WRTE) {
+                // turn on red LED
                 PORTEbits.RE1 = 1;
+                // disable cts
+                PORTAbits.RA2 = 1;
                 do_write();
+                // enable cts
+                PORTAbits.RA2 = 0;
             }
             else if (buffer[1] == CMD_CHEK) {
+                // turn on red LED
                 PORTEbits.RE1 = 1;
                 do_blank();
             }
@@ -347,11 +371,19 @@ void do_write()
             return;
         }
 
-        // The sender sends a byte stream.
+        // The sender sends a stream of hex ascii pairs.
+        // 
         char c;
-        while (! uart_getc(&c)) {
+        PORTAbits.RA2 = 0; // enable cts
+        __delay_us(10);
+        while (!uart_getc(&c))
             __delay_us(10);
-        }
+        uint8_t hi = charToHexDigit(c);
+        while (!uart_getc(&c))
+            __delay_us(10);
+        uint8_t lo = charToHexDigit(c);
+        uint8_t data = hi*16+lo;
+        PORTAbits.RA2 = 1; // disable cts
         
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
         PORTD = addr & 0x00ff;
@@ -367,14 +399,14 @@ void do_write()
         NOP();
         
         // Write the byte to port D
-        PORTD = c;
+        PORTD = data;
         
         // Activate PGM pulse for 50mS
         __delay_us(10);
         PORTBbits.RB3 = 1;
-        //PORTAbits.RA2 = 1; // disable cts
+        
         __delay_ms(50);
-        //PORTAbits.RA2 = 0; // enable cts
+        
         PORTBbits.RB3 = 0;
         __delay_us(10);
      

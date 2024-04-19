@@ -122,11 +122,7 @@ void main(void) {
             else if (buffer[1] == CMD_WRTE) {
                 // turn on red LED
                 PORTEbits.RE1 = 1;
-                // disable cts
-                PORTAbits.RA2 = 1;
                 do_write();
-                // enable cts
-                PORTAbits.RA2 = 0;
             }
             else if (buffer[1] == CMD_CHEK) {
                 // turn on red LED
@@ -374,8 +370,10 @@ void do_write()
         // The sender sends a stream of hex ascii pairs.
         // 
         char c;
-        PORTAbits.RA2 = 0; // enable cts
-        __delay_us(10);
+        // enable cts. We allow reading data from the PC to the
+        // PIC.
+        PORTAbits.RA2 = 0;
+        // get two ascii chars
         while (!uart_getc(&c))
             __delay_us(10);
         uint8_t hi = charToHexDigit(c);
@@ -383,7 +381,10 @@ void do_write()
             __delay_us(10);
         uint8_t lo = charToHexDigit(c);
         uint8_t data = hi*16+lo;
-        PORTAbits.RA2 = 1; // disable cts
+        // disable cts. We are telling the PC to stop sending
+        // as we can't handle more data until we've programmed
+        // this byte.
+        PORTAbits.RA2 = 1; 
         
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
         PORTD = addr & 0x00ff;

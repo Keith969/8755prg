@@ -33,7 +33,7 @@ SenderThread::~SenderThread()
 // Description  [ The transaction for the thread to carry out. ]
 // *****************************************************************************
 void
-SenderThread::transaction(const QString &portName, const QString &request, int waitTimeout, int baudRate, int flowControl)
+SenderThread::transaction(const QString &portName, const QString &request, int waitTimeout, int baudRate, int flowControl, bool program)
 {
     const QMutexLocker locker(&m_mutex);
     m_portName = portName;
@@ -43,6 +43,7 @@ SenderThread::transaction(const QString &portName, const QString &request, int w
     m_request = request;
     m_bytesSent = 0;
     m_bytesReceived = 0;
+    m_program = program;
 
     if (!isRunning())
         start();
@@ -93,7 +94,21 @@ SenderThread::run()
         }
         // write request to the PIC
         const QByteArray requestData = currentRequest.toUtf8();
-        serial.write(requestData);
+
+        if (m_program) {
+            int32_t size = currentRequest.size();
+            for (int32_t i=0; i < size; i+=2) {
+                // write 2 chars at a time...
+                QString s = currentRequest.at(i);
+                s.append(currentRequest.at(i+1));
+                serial.write((const char *) s.toLatin1());
+                // sleep for 50ms
+                msleep(50);
+            }
+        }
+        else {
+            serial.write(requestData);
+        }
 
         // if we got a response...
         if (serial.waitForBytesWritten(m_waitTimeout)) {

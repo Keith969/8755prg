@@ -101,45 +101,43 @@ guiMainWindow::saveHexFile()
     // foreach line
     for (auto line_iter = lines.begin(); line_iter != lines.end(); ++line_iter) {
         QString line = *line_iter;
+        std::vector<uint8_t> data;
+        uint32_t checksum=0;
 
         // split lines by spaces
         QStringList textlist = line.split(" ", Qt::SkipEmptyParts);
         for (auto token_iter = textlist.begin(); token_iter != textlist.end(); ++token_iter) {
 
             QString addr = *token_iter;
+            // The first ite is the address followed by ':'
             if (addr.contains(QChar(':'))) {
                 addr.remove(':');
                 address = addr.toUShort(&ok, 16);
+                chunk.setByteCount(blocksize);
+                checksum += blocksize;
+                chunk.setAddress(address);
+                checksum += address & 0xff;
+                checksum += (address >> 8) & 0xff;
+                chunk.setRecordType(0);
+                checksum += 0;
                 token_iter++;
             }
 
-            uint32_t checksum=0;
-            chunk.setByteCount(blocksize);
-            checksum += blocksize;
-            chunk.setAddress(address);
-            checksum += address & 0xff;
-            checksum += (address >> 8) & 0xff;
-            chunk.setRecordType(0);
-            checksum += 0;
-            std::vector<uint8_t> data;
-            for (int32_t i=0; i < blocksize; ++i) {
-                QString item = *token_iter;
-
-                uint8_t d = (uint8_t) item.toUShort(&ok, 16);
-                data.push_back(d);
-                checksum += d;
-                if (!ok) {
-                    QString message = QString("Invalid byte %1").arg(item);
-                    QMessageBox::warning(nullptr, "Not a valid hex value", message);
-                    return;
-                }
+            QString item = *token_iter;
+            uint8_t d = (uint8_t) item.toUShort(&ok, 16);
+            data.push_back(d);
+            checksum += d;
+            if (!ok) {
+                QString message = QString("Invalid byte %1").arg(item);
+                QMessageBox::warning(nullptr, "Not a valid hex value", message);
+                return;
             }
-            chunk.setData(data);
-            uint8_t lsb = ~(checksum & 0xff)+1;
-            chunk.setCheckSum(lsb);
-            address += blocksize;
-            m_HexFile->addChunk(chunk);
         }
+        chunk.setData(data);
+        uint8_t lsb = ~(checksum & 0xff)+1;
+        chunk.setCheckSum(lsb);
+        address += blocksize;
+        m_HexFile->addChunk(chunk);
     }
 
     m_HexFile->writeHex(fileName);
@@ -221,7 +219,6 @@ guiMainWindow::write()
 
         // Send the cmd, followed by the data.
         QString request(CMD_WRTE);
-        request.append(" ");
 
         // Send the data as bytes, using pairs of chars.
         std::vector<hexDataChunk> hData = m_HexFile->hexData();
@@ -231,11 +228,12 @@ guiMainWindow::write()
             std::vector<uint8_t> data = chunk.data();
             uint8_t count = chunk.byteCount();
             for (int8_t i=0; i < count; ++i) {
-                request.append(QChar(data.at(i)));
+                QString c=QString("%1").arg(data.at(i),2,16);
+                request.append(c);
             }
         }
 
-        m_senderThread.transaction(portName, request, timeout, baudRate, flowControl);
+        m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
 
         size_t sent = m_senderThread.bytesSent();
         size_t received = m_senderThread.bytesReceived();

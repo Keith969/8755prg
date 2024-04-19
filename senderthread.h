@@ -16,7 +16,12 @@ public:
     explicit SenderThread(QObject *parent = nullptr);
     ~SenderThread();
 
-    void                      transaction(const QString &portName, const QString &request, int waitTimeout=10000, int baudRate=115200, int flowControl=0 );
+    void                      transaction(const QString &portName,
+                                            const QString &request,
+                                            int waitTimeout=10000,
+                                            int baudRate=115200,
+                                            int flowControl=0,
+                                            bool program=false);
     size_t                    bytesSent() {return m_bytesSent;}
     size_t                    bytesReceived() {m_bytesReceived;}
 
@@ -38,6 +43,7 @@ private:
     int32_t                   m_flowControl = 0;
     size_t                    m_bytesSent;
     size_t                    m_bytesReceived;
+    bool                      m_program;
 };
 
 #endif /* SENDERTHREAD_H */

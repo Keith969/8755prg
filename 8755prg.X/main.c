@@ -349,6 +349,8 @@ void do_write()
 {
     uint16_t addr = 0;
     char *s;
+    s = "$$";
+    uart_puts(s);
         
     // Set port D to output
     TRISD = 0x00;

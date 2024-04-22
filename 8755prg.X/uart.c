@@ -79,12 +79,6 @@ void uart_init(const uint32_t baud_rate)
 // ****************************************************************************
 void uart_putc(char c)
 {
-    // Disable global interrupts
-    INTCONbits.GIEH = 0;
-    
-    // Set RTS false to prevent sending until TX buffer empty
-    PORTAbits.RA3 = 1;
-    
     // Wait until TXREG ready
     while (PIR1bits.TXIF == 0) {
         NOP();
@@ -97,12 +91,6 @@ void uart_putc(char c)
     while(TXSTAbits.TRMT == 0) {
         NOP();
     }
-    
-    // Set RTS true to allow sending
-    PORTAbits.RA3 = 0;
-    
-    // Enable global interrupts
-    INTCONbits.GIEH = 1;
 }
 
 // ****************************************************************************
@@ -136,12 +124,6 @@ bool uart_getc(char *c)
 // ****************************************************************************
 void uart_puts(char *s)
 {
-    // Disable global interrupts
-    INTCONbits.GIEH = 0;
-    
-    // Set RTS false to prevent sending until TX buffer empty
-    PORTAbits.RA3 = 1;
-    
     // Wait until TXREG ready
     while (PIR1bits.TXIF == 0) {
         NOP();
@@ -155,12 +137,6 @@ void uart_puts(char *s)
             NOP();
         }
     }
-    
-    // Set RTS true to allow sending
-    PORTAbits.RA3 = 0;
-    
-    // Enable global interrupts
-    INTCONbits.GIEH = 1; 
 }
 
 // ****************************************************************************

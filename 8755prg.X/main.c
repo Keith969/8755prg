@@ -26,14 +26,17 @@
 #define CMD_CHEK '3' // Check EPROM is blank (all FF))
 
 // CMD buffer
-#define BUFSIZE 2
+#define STACKSIZE 128
+#define TOP STACKSIZE-1
+#define BOTTOM 0
+#define LOWATER 4
 
 //
-// global variables
+// sttatic variables
 //
-static uint8_t buffer[BUFSIZE];        // cmd buffer
-static uint8_t bufptr;                 // cmd size
-static bool    cmd_active = false;     // Complete line received from isr
+static char stack[STACKSIZE];          // Read stack
+static int8_t sptr = TOP;              // The stack pointer
+static bool cmd_active = false;        // Are we in a cmd?
 
 //
 // forward defs
@@ -41,6 +44,62 @@ extern void do_finish();
 extern void do_read();
 extern void do_write();
 extern void do_blank();
+
+// ****************************************************************************
+// setCTS()
+// Note CTS is active low. So setting CTS to 1 means 'NOT clear to send'
+void setCTS(bool b)
+{
+    PORTAbits.RA2 = b;
+}
+
+// ****************************************************************************
+// push a char onto stack. 
+// If there are less than LOWATER chars left on stack, assert CTS
+void push(char c)
+{
+    stack[sptr--] = c;
+
+    if (sptr < LOWATER) {
+        setCTS(true);
+    }
+    else {
+        setCTS(false);
+    }
+}
+
+// ****************************************************************************
+// pop a char from stack. 
+// If there are less than LOWATER chars left on stack, assert CTS
+char pop()
+{
+    char c = stack[sptr++];
+
+    if (sptr < LOWATER) {
+        setCTS(true);
+    }
+    else {
+        setCTS(false);
+    }
+    
+    return c;
+}
+
+// ****************************************************************************
+// get the top of stack 
+char top()
+{
+    return stack[TOP];
+}
+
+// ****************************************************************************
+// reset the stack
+void clear()
+{
+    stack[TOP]   = 0; // clear cmd
+    stack[TOP-1] = 0;
+    sptr         = TOP;
+}
 
 // ****************************************************************************
 // convert char to hex digit
@@ -73,6 +132,8 @@ void main(void) {
     // Use port E for status LEDs
     TRISEbits.RE0 = 0; // green LED, while loop
     TRISEbits.RE1 = 0; // red LED, interrupt
+    PORTEbits.RE0 = 0;
+    PORTEbits.RE1 = 0;
     
     // Port A for uart control. Bits 0,1,4-7 spare.
     TRISAbits.RA2 = 0; // CTS is an active low output
@@ -103,42 +164,36 @@ void main(void) {
         PORTEbits.RE0 = 1;
         __delay_ms(250);
         
-        // If we set this in interrupt, it's because we have
-        // 2 chars in the cmd buffer: a $ and cmd id.
         if (cmd_active) {
+            // turn on red LED
+            PORTEbits.RE1 = 1;
             
-            // Disable global interrupts
-            INTCONbits.GIEH = 0;
-    
+            // pop the cmd off the stack
+            char cmd = pop();
+            // and the cmd char
+            pop();
+            
             // Do the cmd
-            if (buffer[1] == CMD_DONE) {
+            if      (cmd == CMD_DONE) {
                 do_finish();
             }
-            else if (buffer[1] == CMD_READ) {
-                // turn on red LED
-                PORTEbits.RE1 = 1;
+            else if (cmd == CMD_READ) {
                 do_read();
             }
-            else if (buffer[1] == CMD_WRTE) {
-                // turn on red LED
-                PORTEbits.RE1 = 1;
+            else if (cmd == CMD_WRTE) {
                 do_write();
             }
-            else if (buffer[1] == CMD_CHEK) {
-                // turn on red LED
-                PORTEbits.RE1 = 1;
+            else if (cmd == CMD_CHEK) {
                 do_blank();
             }
             else {
-                uart_puts("\nUnknown cmd\n");
-                buffer[0]='$';
-                buffer[1]=0;
+                // unknown cmd
+                cmd_active = false;
+                clear();
             }
-            bufptr = 0;
-            cmd_active = false;
             
-            // Enable global interrupts
-            INTCONbits.GIEH = 1;
+            // turn off red LED
+            PORTEbits.RE1 = 0;
         } 
     } 
 }
@@ -149,41 +204,32 @@ void __interrupt(high_priority) high_isr(void)
 {
     char c = 0;
     
-    // Disable global interrupts
+    // Disable interrupts
     INTCONbits.GIEH = 0;
+    PIE1bits.RCIE=0;
     
     // Echo the character received
     bool ok = uart_getc(&c);
     if (ok) {
-        // set LED indicating we received a char
-        PORTEbits.RE1 = 1;
-        
-        // ignore CR/LF
-        if (c != '\n' && c != '\r') {
-            
-            // Put received char in buffer  
-            buffer[bufptr] = c;
-
-            // Our commands are only 2 chars long
-            if (bufptr >= BUFSIZE) {
-                bufptr = 0;
-                cmd_active=false;
-            }
-            else {
-                if (buffer[0] == '$' && bufptr == 1) {
-                    // We have a command
-                    cmd_active=true;
-                }
-            }  
-            bufptr++;
+        // ctrl-C - cancel
+        if (c == 0x03) {
+            cmd_active = false;
+            sptr = 0;
         }
-        else if (c == 0x03) {
-            // ctrl-C
-            cmd_active=false;
+        else { 
+            // Push the char 
+            push(c);
+
+            // Check if we have a cmd yet
+            if (stack[0] == '$' && (sptr > 0)) {
+                // We have a command (2 chars at bottom of stack))
+                cmd_active = true;
+            }
         }
     }
     
-    // Enable global interrupts
+    // Enable interrupts
+    PIE1bits.RCIE=1;
     INTCONbits.GIEH = 1;
 }
 
@@ -336,9 +382,6 @@ void do_read()
     
     // Set CE2 lo to disable reading
     PORTBbits.RB1 = 0;
-    
-    //s = "CMD_DONE\n";
-    //uart_puts(s);
 }
 
 // ****************************************************************************
@@ -348,10 +391,10 @@ void do_read()
 void do_write()
 {
     uint16_t addr = 0;
-    char *s;
-    s = "$$";
-    uart_puts(s);
-        
+    char *s;     
+    char c;
+    PIE1bits.RCIE=0; // disable interrupts. We want to grab input here.
+    
     // Set port D to output
     TRISD = 0x00;
         
@@ -370,8 +413,6 @@ void do_write()
         }
 
         // The sender sends a stream of hex ascii pairs.
-        // 
-        char c;
         // enable cts. We allow reading data from the PC to the
         // PIC.
         PORTAbits.RA2 = 0;
@@ -423,7 +464,10 @@ void do_write()
     // Set CE2 lo to disable writing.
     PORTBbits.RB1 = 0;
     
-    s = "CMD_DONE\n";
+    PIE1bits.RCIE=1; // enable interrupts
+    
+    s = "Write done\n";
+    __delay_ms(10);
     uart_puts(s);
 }
 

@@ -130,6 +130,9 @@ uint8_t stringToByte(char c[2])
 // ****************************************************************************
 // main
 void main(void) {
+    
+    // Set the stack pointer
+    sptr = TOP;
 
     // Initialise uart
     uart_init(115200);
@@ -162,7 +165,9 @@ void main(void) {
     // Port B1 = CE2
     // Port B2 = _RD
     // Port B3 = PGM (switches +25v onto VDD pin)
+    // Port B4 = _CE1 (set hi for PGM))
     PORTBbits.RB3 = 0;
+    PORTBbits.RB4 = 0;
     
     // Loop while waiting for commands
     // We flash a green LED so we know we are listening...
@@ -256,6 +261,8 @@ void do_blank()
     PORTBbits.RB1 = 1;
     // Set PGM lo
     PORTBbits.RB3 = 0;
+    // Set _CE1 lo
+    PORTBbits.RB4 = 0;
         
     for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
@@ -328,6 +335,8 @@ void do_read()
     PORTBbits.RB1 = 1;
     // Set PGM lo
     PORTBbits.RB3 = 0;
+    // Set _CE1 lo
+    PORTBbits.RB4 = 0;
         
     for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
@@ -444,14 +453,23 @@ void do_write()
         // Write the byte to port D
         PORTD = data;
         
-        // Activate PGM pulse for 50mS
         __delay_us(10);
+        
+        // Set CE1 hi 
+        PORTBbits.RB4 = 1;
+        
+        // Activate PGM pulse for 50mS
+        __delay_us(1);
         PORTBbits.RB3 = 1;
         
         __delay_ms(50);
         
+        // Deactivate PGM pulse
         PORTBbits.RB3 = 0;
-        __delay_us(10);
+        __delay_us(1);
+        
+        // Set CE1 lo
+        PORTBbits.RB4 = 0;
      
         // We should now verify the byte is written,
         // and if necessary try writing again until ok.

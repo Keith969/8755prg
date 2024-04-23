@@ -14,7 +14,7 @@
 // Function     [ byteCount ]
 // Description  [ ]
 // *****************************************************************************
-inline uint8_t
+ uint8_t
 hexDataChunk::byteCount() const
 {
     return m_ByteCount;
@@ -24,7 +24,7 @@ hexDataChunk::byteCount() const
 // Function     [ setByteCount ]
 // Description  [ ]
 // *****************************************************************************
-inline void
+ void
 hexDataChunk::setByteCount(uint8_t n)
 {
     m_ByteCount = n;
@@ -34,7 +34,7 @@ hexDataChunk::setByteCount(uint8_t n)
 // Function     [ recordType ]
 // Description  [ ]
 // *****************************************************************************
-inline uint8_t
+ uint8_t
 hexDataChunk::recordType() const
 {
     return m_RecordType;
@@ -44,7 +44,7 @@ hexDataChunk::recordType() const
 // Function     [ setRecordType ]
 // Description  [ ]
 // *****************************************************************************
-inline void
+ void
 hexDataChunk::setRecordType(uint8_t n)
 {
     m_RecordType = n;
@@ -54,7 +54,7 @@ hexDataChunk::setRecordType(uint8_t n)
 // Function     [ address ]
 // Description  [ ]
 // *****************************************************************************
-inline uint16_t
+ uint16_t
 hexDataChunk::address() const
 {
     return m_Address;
@@ -64,7 +64,7 @@ hexDataChunk::address() const
 // Function     [ setAddress ]
 // Description  [ ]
 // *****************************************************************************
-inline void
+ void
 hexDataChunk::setAddress(uint16_t n)
 {
     m_Address = n;
@@ -74,7 +74,7 @@ hexDataChunk::setAddress(uint16_t n)
 // Function     [ checkSum ]
 // Description  [ ]
 // *****************************************************************************
-inline uint8_t
+ uint8_t
 hexDataChunk::checkSum() const
 {
     return m_Checksum;
@@ -84,7 +84,7 @@ hexDataChunk::checkSum() const
 // Function     [ setCheckSum ]
 // Description  [ ]
 // *****************************************************************************
-inline void
+ void
 hexDataChunk::setCheckSum(uint8_t n)
 {
     m_Checksum = n;
@@ -94,7 +94,7 @@ hexDataChunk::setCheckSum(uint8_t n)
 // Function     [ data ]
 // Description  [ ]
 // *****************************************************************************
-inline std::vector<uint8_t> &
+ std::vector<uint8_t> &
 hexDataChunk::data()
 {
     return m_Data;
@@ -104,7 +104,7 @@ hexDataChunk::data()
 // Function     [ setData ]
 // Description  [ ]
 // *****************************************************************************
-inline void
+ void
 hexDataChunk::setData(const std::vector<uint8_t> &d)
 {
     m_Data = d;

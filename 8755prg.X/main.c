@@ -20,23 +20,23 @@
 #include "uart.h"
 
 // cmds
-#define CMD_DONE '0' // Sent to PC as ack
-#define CMD_READ '1' // Read from the EPROM
-#define CMD_WRTE '2' // Program the EPROM
-#define CMD_CHEK '3' // Check EPROM is blank (all FF))
+#define CMD_DONE '0'            // Sent to PC as ack
+#define CMD_READ '1'            // Read from the EPROM
+#define CMD_WRTE '2'            // Program the EPROM
+#define CMD_CHEK '3'            // Check EPROM is blank (all FF))
 
 // CMD buffer
-#define STACKSIZE 128
-#define TOP STACKSIZE-1
-#define BOTTOM 0
-#define LOWATER 4
+#define STACKSIZE 1024          // stack size
+#define TOP STACKSIZE-1         // top of stack
+#define BOTTOM 0                // bottom of stack
+#define LOWATER 4               // The stack low water mark.
 
 //
-// sttatic variables
+// static variables
 //
-static char stack[STACKSIZE];          // Read stack
-static int8_t sptr = TOP;              // The stack pointer
-static bool cmd_active = false;        // Are we in a cmd?
+static char stack[STACKSIZE];   // Read stack
+static int16_t sptr = TOP;      // The stack pointer
+static bool cmd_active = false; // Are we in a cmd?
 
 //
 // forward defs
@@ -47,7 +47,7 @@ extern void do_blank();
 
 // ****************************************************************************
 // setCTS()
-// Note CTS is active low. So setting CTS to 1 means 'NOT clear to send'
+// Note CTS is active low. So setCTS(1) means 'NOT clear to send'
 void setCTS(bool b)
 {
     PORTAbits.RA2 = b;
@@ -55,34 +55,43 @@ void setCTS(bool b)
 
 // ****************************************************************************
 // push a char onto stack. 
-// If there are less than LOWATER chars left on stack, assert CTS
+// If there are less than LOWATER chars space left on stack,
+// set CTS inactive. Else set CTS active.
 void push(char c)
 {
-    stack[sptr--] = c;
+    if (sptr > 0) {
+        stack[sptr--] = c;
 
-    if (sptr < LOWATER) {
-        setCTS(true);
-    }
-    else {
-        setCTS(false);
+        if (sptr < LOWATER) {
+            setCTS(true);
+        }
+        else {
+            setCTS(false);
+        }
     }
 }
 
 // ****************************************************************************
 // pop a char from stack. 
-// If there are less than LOWATER chars left on stack, assert CTS
+// If there are less than LOWATER chars space left on stack,
+// set CTS inactive. Else set CTS active.
 char pop()
 {
-    char c = stack[sptr++];
+    if (sptr <= TOP) {
+        char c = stack[++sptr];
 
-    if (sptr < LOWATER) {
-        setCTS(true);
+        if (sptr < LOWATER) {
+            setCTS(true);
+        }
+        else {
+            setCTS(false);
+        }
+
+        return c;
     }
     else {
-        setCTS(false);
+        return 0;
     }
-    
-    return c;
 }
 
 // ****************************************************************************
@@ -96,7 +105,7 @@ char top()
 // reset the stack
 void clear()
 {
-    stack[TOP]   = 0; // clear cmd
+    stack[TOP]   = 0;
     stack[TOP-1] = 0;
     sptr         = TOP;
 }
@@ -159,9 +168,9 @@ void main(void) {
     // We flash a green LED so we know we are listening...
     while (true) {
         PORTEbits.RE0 = 0;
-        PORTEbits.RE1 = 0;
         __delay_ms(250);      
         PORTEbits.RE0 = 1;
+        PORTEbits.RE1 = 0;
         __delay_ms(250);
         
         if (cmd_active) {
@@ -186,14 +195,10 @@ void main(void) {
             else if (cmd == CMD_CHEK) {
                 do_blank();
             }
-            else {
-                // unknown cmd
-                cmd_active = false;
-                clear();
-            }
-            
-            // turn off red LED
-            PORTEbits.RE1 = 0;
+
+            // Clear the cmd
+            cmd_active = false;
+            clear();
         } 
     } 
 }
@@ -208,23 +213,19 @@ void __interrupt(high_priority) high_isr(void)
     INTCONbits.GIEH = 0;
     PIE1bits.RCIE=0;
     
-    // Echo the character received
+    // Turn red led on
+    PORTEbits.RE1 = 1;
+    
+    // Get the character from uart
     bool ok = uart_getc(&c);
     if (ok) {
-        // ctrl-C - cancel
-        if (c == 0x03) {
-            cmd_active = false;
-            sptr = 0;
-        }
-        else { 
-            // Push the char 
-            push(c);
+        // Push the char onto stack
+        push(c);
 
-            // Check if we have a cmd yet
-            if (stack[0] == '$' && (sptr > 0)) {
-                // We have a command (2 chars at bottom of stack))
-                cmd_active = true;
-            }
+        // Check if we have a cmd yet
+        if (stack[TOP] == '$' && (sptr < TOP)) {
+            // We have a command (2 chars at top of SP))
+            cmd_active = true;
         }
     }
     
@@ -393,7 +394,6 @@ void do_write()
     uint16_t addr = 0;
     char *s;     
     char c;
-    PIE1bits.RCIE=0; // disable interrupts. We want to grab input here.
     
     // Set port D to output
     TRISD = 0x00;
@@ -413,15 +413,14 @@ void do_write()
         }
 
         // The sender sends a stream of hex ascii pairs.
-        // enable cts. We allow reading data from the PC to the
-        // PIC.
+        // enable cts.
         PORTAbits.RA2 = 0;
-        // get two ascii chars
-        while (!uart_getc(&c))
-            __delay_us(10);
+        // get two ascii chars from stack
+        while (! (c = pop()) )
+            __delay_us(100);
         uint8_t hi = charToHexDigit(c);
-        while (!uart_getc(&c))
-            __delay_us(10);
+        while (! (c = pop()) )
+            __delay_us(100);
         uint8_t lo = charToHexDigit(c);
         uint8_t data = hi*16+lo;
         // disable cts. We are telling the PC to stop sending
@@ -463,8 +462,6 @@ void do_write()
     
     // Set CE2 lo to disable writing.
     PORTBbits.RB1 = 0;
-    
-    PIE1bits.RCIE=1; // enable interrupts
     
     s = "Write done\n";
     __delay_ms(10);

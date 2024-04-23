@@ -29,7 +29,7 @@
 #define STACKSIZE 1024          // stack size
 #define TOP STACKSIZE-1         // top of stack
 #define BOTTOM 0                // bottom of stack
-#define LOWATER 4               // The stack low water mark.
+#define LOWATER 32              // The stack low water mark.
 
 //
 // static variables
@@ -78,9 +78,6 @@ void push(char c)
             setCTS(false);
         }
     } 
-    else {
-        clear(); // stack overflow
-    }
 }
 
 // ****************************************************************************
@@ -102,7 +99,6 @@ char pop()
         return c;
     }
     else {
-        clear(); // stack underflow
         return 0;
     }
 }
@@ -183,8 +179,8 @@ void main(void) {
         __delay_ms(250);
         
         if (cmd_active) {
-            // turn on green LED
-            PORTEbits.RE0 = 1;
+            // turn on red LED
+            PORTEbits.RE1 = 1;
             
             // pop the cmd off the stack
             char cmd = top();
@@ -220,7 +216,7 @@ void __interrupt(high_priority) high_isr(void)
     PIE1bits.RCIE=0;
     
     // Turn red led on
-    PORTEbits.RE1 = 1;
+    //PORTEbits.RE1 = 1;
     
     // Get the character from uart
     bool ok = uart_getc(&c);
@@ -423,8 +419,7 @@ void do_write()
         }
 
         // The sender sends a stream of hex ascii pairs.
-        // enable cts.
-        PORTAbits.RA2 = 0;
+
         // get two ascii chars from stack
         while (! (c = pop()) )
             __delay_us(100);
@@ -433,10 +428,6 @@ void do_write()
             __delay_us(100);
         uint8_t lo = charToHexDigit(c);
         uint8_t data = hi*16+lo;
-        // disable cts. We are telling the PC to stop sending
-        // as we can't handle more data until we've programmed
-        // this byte.
-        PORTAbits.RA2 = 1; 
         
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
         PORTD = addr & 0x00ff;
@@ -483,7 +474,6 @@ void do_write()
     PORTBbits.RB1 = 0;
     
     s = "Write done\n";
-    __delay_ms(10);
     uart_puts(s);
 }
 

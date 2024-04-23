@@ -102,10 +102,10 @@ SenderThread::run()
                 // write 2 chars at a time...
                 QByteArray s = requestData.sliced(i,2);
                 serial.write(s);
-                // sleep for 50ms - the length of programming pulse
-                msleep(50);
+                // sleep for 55ms - the length of programming pulse, plus a bit
+                msleep(55);
                 // until we have sent it
-                while (!serial.waitForBytesWritten(m_waitTimeout)) {
+                while (!serial.waitForBytesWritten(size * 55 + 10000)) {
                     msleep(1);
                 }
             }

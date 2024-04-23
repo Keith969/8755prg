@@ -176,7 +176,7 @@ guiMainWindow::read()
     // Send the cmd.
     m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
 
-    statusBar()->showMessage("Ready");
+    statusBar()->showMessage("Read data OK");
 }
 
 // *****************************************************************************
@@ -198,7 +198,7 @@ guiMainWindow::check()
     // Send the cmd.
     m_senderThread.transaction(portName, CMD_CHEK, timeout, baudRate, flowControl);
 
-    statusBar()->showMessage("Ready");
+    statusBar()->showMessage("Check OK");
 }
 
 // *****************************************************************************
@@ -236,11 +236,7 @@ guiMainWindow::write()
 
         m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
 
-        size_t sent = m_senderThread.bytesSent();
-        size_t received = m_senderThread.bytesReceived();
-        qApp->processEvents();
-
-        statusBar()->showMessage("Ready");
+        statusBar()->showMessage("Write data OK");
     }
     else {
         clearText();

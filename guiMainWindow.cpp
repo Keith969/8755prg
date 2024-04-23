@@ -228,7 +228,8 @@ guiMainWindow::write()
             std::vector<uint8_t> data = chunk.data();
             uint8_t count = chunk.byteCount();
             for (int8_t i=0; i < count; ++i) {
-                QString c=QString("%1").arg(data.at(i),2,16);
+                const short d = data.at(i);
+                QString c=QString("%1").arg(d, 2, 16, QChar('0'));
                 request.append(c);
             }
         }

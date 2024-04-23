@@ -54,12 +54,21 @@ void setCTS(bool b)
 }
 
 // ****************************************************************************
+// reset the stack
+void clear()
+{
+    memset(stack, 0x00, STACKSIZE);
+    sptr         = TOP;
+    cmd_active   = false;
+}
+
+// ****************************************************************************
 // push a char onto stack. 
 // If there are less than LOWATER chars space left on stack,
 // set CTS inactive. Else set CTS active.
 void push(char c)
 {
-    if (sptr > 0) {
+    if (sptr >= 0) {
         stack[sptr--] = c;
 
         if (sptr < LOWATER) {
@@ -68,6 +77,9 @@ void push(char c)
         else {
             setCTS(false);
         }
+    } 
+    else {
+        clear(); // stack overflow
     }
 }
 
@@ -90,24 +102,16 @@ char pop()
         return c;
     }
     else {
+        clear(); // stack underflow
         return 0;
     }
 }
 
 // ****************************************************************************
-// get the top of stack 
+// get the cmd at top of stack 
 char top()
 {
-    return stack[TOP];
-}
-
-// ****************************************************************************
-// reset the stack
-void clear()
-{
-    stack[TOP]   = 0;
-    stack[TOP-1] = 0;
-    sptr         = TOP;
+    return stack[TOP-1];
 }
 
 // ****************************************************************************
@@ -159,7 +163,7 @@ void main(void) {
     // (uart uses bits 6,7). Bits 3/4/5 spare.
     TRISC = 0b11000000;
     
-    // Port B for EPROM control. Bits 4-7 spare.
+    // Port B for EPROM control. Bits 5-7 spare.
     TRISB = 0;
     // Port B0 = ALE
     // Port B1 = CE2
@@ -172,20 +176,18 @@ void main(void) {
     // Loop while waiting for commands
     // We flash a green LED so we know we are listening...
     while (true) {
-        PORTEbits.RE0 = 0;
-        __delay_ms(250);      
         PORTEbits.RE0 = 1;
+        __delay_ms(250);      
+        PORTEbits.RE0 = 0;
         PORTEbits.RE1 = 0;
         __delay_ms(250);
         
         if (cmd_active) {
-            // turn on red LED
-            PORTEbits.RE1 = 1;
+            // turn on green LED
+            PORTEbits.RE0 = 1;
             
             // pop the cmd off the stack
-            char cmd = pop();
-            // and the cmd char
-            pop();
+            char cmd = top();
             
             // Do the cmd
             if      (cmd == CMD_DONE) {
@@ -202,7 +204,6 @@ void main(void) {
             }
 
             // Clear the cmd
-            cmd_active = false;
             clear();
         } 
     } 
@@ -243,7 +244,7 @@ void __interrupt(high_priority) high_isr(void)
 //
 void do_finish()
 {
-    cmd_active = false;
+    clear();
 }
 
 // ****************************************************************************
@@ -445,10 +446,10 @@ void do_write()
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
-        NOP();NOP();NOP();
+        __delay_us(1);
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
         PORTBbits.RB0 = 0;
-        NOP();
+        __delay_us(1);
         
         // Write the byte to port D
         PORTD = data;

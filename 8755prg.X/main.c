@@ -34,7 +34,7 @@
 //
 // static variables
 //
-static char    stack[STACKSIZE];   // The receiver stack
+static char    stack[STACKSIZE];   // The receiver queue
 static int16_t sptr = TOP;         // The stack pointer
 static bool    cmd_active = false; // Are we in a cmd?
 static int16_t bytes_pushed = 0;   // received
@@ -61,7 +61,7 @@ void clear()
 }
 
 // ****************************************************************************
-// push a char onto stack. 
+// push a char onto queue.
 // If there are less than LOWATER chars space left on stack,
 // set CTS inactive. Else set CTS active.
 //
@@ -87,22 +87,27 @@ void push(char c)
 }
 
 // ****************************************************************************
-// pop a char from stack. 
+// pop a char from queue. 
 // If there are less than LOWATER chars space left on stack,
 // set CTS inactive. Else set CTS active.
 //
 char pop()
 {
+    // Disable interrupts
+    INTCONbits.GIEH = 0;
+    PIE1bits.RCIE=0;
+    
+    char c;
+    
     if (sptr <= TOP) {
-        char c = stack[++sptr];
+        c = stack[++sptr];
         if (sptr < LOWATER) {
             setCTS(true);
         }
         else {
             setCTS(false);
         }
-        bytes_popped++;
-        return c;
+        bytes_popped++;  
     }
     else {
         while (1) {
@@ -110,6 +115,11 @@ char pop()
             PORTEbits.RE2 = 1;
         }
     }
+    
+    // Enable interrupts
+    INTCONbits.GIEH = 1;
+    PIE1bits.RCIE = 1;
+    return c;
 }
 
 // ****************************************************************************
@@ -243,16 +253,17 @@ void do_blank()
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
-        NOP();
+        __delay_us(1);
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
         PORTBbits.RB0 = 0;
-        NOP();
+        __delay_us(1);
         
-        // Set port D to input, read it.
+        // Set port D to input
         TRISD = 0xff;
-        // Set _RD_ lo - 
+        // Set _RD_ lo to enable reading
         PORTBbits.RB2 = 0;
-        NOP();
+        __delay_us(1);
+        
         // Read port D
         uint8_t data = PORTD;
 
@@ -325,7 +336,7 @@ void do_read()
         PORTBbits.RB2 = 0;
         __delay_us(1);
         
-        // Read port D - the eprom data.
+        // Read port D
         uint8_t data = PORTD;
 
         // Set _RD hi

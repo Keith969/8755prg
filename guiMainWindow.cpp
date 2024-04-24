@@ -233,6 +233,8 @@ guiMainWindow::write()
                 request.append(c);
             }
         }
+        QString s = QString("Sent %1 bytes").arg(request.size());
+        appendText(s);
 
         m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
 

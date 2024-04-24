@@ -104,15 +104,17 @@ bool uart_getc(char *c)
     
     // Check for errors
     if (RCSTAbits.FERR) {
-        uint8_t er = RCREG;  // Framing error
+        uint8_t er = RCREG;    // Framing error
     }
     else if (RCSTAbits.OERR) {
-        RCSTAbits.CREN = 0;  // Overrun error, clear it
-        RCSTAbits.CREN = 1;
+        RCSTAbits.CREN = 0;    // Overrun error, clear it
+        RCSTAbits.CREN = 1;    // by toggling CREN
     }
     else {
-        *c = RCREG & 0x7f;    // strip hi bit
-        ok = true;
+        if (PIR1bits.RCIF) {
+            *c = RCREG & 0x7f; // strip hi bit
+            ok = true;
+        }
     } 
     
     return ok;

@@ -37,6 +37,8 @@
 static char    stack[STACKSIZE];   // The receiver stack
 static int16_t sptr = TOP;         // The stack pointer
 static bool    cmd_active = false; // Are we in a cmd?
+static int16_t bytes_pushed = 0;   // received
+static int16_t bytes_popped = 0;   // used
 
 
 // ****************************************************************************
@@ -74,6 +76,7 @@ void push(char c)
         else {
             setCTS(false);
         }
+        bytes_pushed++;
     } 
     else {
         while (1) {
@@ -98,6 +101,7 @@ char pop()
         else {
             setCTS(false);
         }
+        bytes_popped++;
         return c;
     }
     else {
@@ -213,7 +217,7 @@ void do_finish()
 void do_blank()
 {
     uint16_t addr;
-    char ads[16];
+    char ads[32];
     bool ok = true;
     char *s;
         
@@ -274,10 +278,8 @@ void do_blank()
     
     if (ok) {
         s = "Passed blank check\n";
-    } else {
-        s = "Failed blank check\n";
-    }
-    uart_puts(s);
+        uart_puts(s);
+    }  
 }
 
 // ****************************************************************************
@@ -289,7 +291,6 @@ void do_read()
     uint16_t addr;
     char ads[16];
     uint8_t col=0;
-    char *s;
         
     // Set CE2 hi to enable reading
     PORTBbits.RB1 = 1;
@@ -300,7 +301,7 @@ void do_read()
         
     for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
-            s = "Read aborted\n";
+            char *s = "Read aborted\n";
             uart_puts(s);
             return;
         }
@@ -313,16 +314,16 @@ void do_read()
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
-        NOP();
+        __delay_us(1);
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
         PORTBbits.RB0 = 0;
-        NOP();
+        __delay_us(1);
         
         // Set port D to input
         TRISD = 0xff;
         // Set _RD_ lo to enable reading
         PORTBbits.RB2 = 0;
-        NOP();
+        __delay_us(1);
         
         // Read port D - the eprom data.
         uint8_t data = PORTD;
@@ -339,7 +340,7 @@ void do_read()
             uart_puts(ads);
         }
         // Write data
-        sprintf(ads, "%x", data);
+        sprintf(ads, "%02x", data);
         uart_puts(ads);
         if (col == 15) {
             col = 0;
@@ -360,8 +361,8 @@ void do_read()
 //
 void do_write()
 {
-    uint16_t addr = 0;
-    char *s;     
+    uint16_t addr;
+    char ads[32];   
     char c;
     
     // Set port D to output
@@ -374,22 +375,21 @@ void do_write()
     // Set PGM lo
     PORTBbits.RB3 = 0;
         
-    while (addr < 2048) {
+    for (addr = 0; addr < 2048; addr++) {
         if (cmd_active == false) {
-            s = "Write aborted\n";
+            char *s = "Write aborted\n";
             uart_puts(s);
             return;
         }
 
-        // The sender sends a stream of hex ascii pairs.
+        // The sender sends a stream of hex ascii pairs, onto a
+        // stack.
 
-        // get two ascii chars from stack. Note they are popped
+        // Get two ascii chars from stack. Note they are popped
         // in order of lobyte : hibyte
-        while (! (c = pop()) )
-            __delay_us(100);
+        c = pop();
         uint8_t lo = charToHexDigit(c);
-        while (! (c = pop()) )
-            __delay_us(100);
+        c = pop();
         uint8_t hi = charToHexDigit(c);
         uint8_t data = hi*16+lo;
         
@@ -427,19 +427,18 @@ void do_write()
         
         // Set CE1 lo
         PORTBbits.RB4 = 0;
+        __delay_us(1);
      
         // We should now verify the byte is written,
         // and if necessary try writing again until ok.
         
-        // increment address
-        addr++;
     }
     
     // Set CE2 lo to disable writing.
     PORTBbits.RB1 = 0;
     
-    s = "Write done\n";
-    uart_puts(s);
+    sprintf(ads, "pushed: %d, popped: %d\n", bytes_pushed, bytes_popped);
+    uart_puts(ads);
 }
 
 // ****************************************************************************

@@ -20,36 +20,29 @@
 #include "uart.h"
 
 // cmds
-#define CMD_DONE '0'            // Sent to PC as ack
-#define CMD_READ '1'            // Read from the EPROM
-#define CMD_WRTE '2'            // Program the EPROM
-#define CMD_CHEK '3'            // Check EPROM is blank (all FF))
+#define CMD_DONE '0'               // Sent to PC as ack
+#define CMD_READ '1'               // Read from the EPROM
+#define CMD_WRTE '2'               // Program the EPROM
+#define CMD_CHEK '3'               // Check EPROM is blank (all FF))
 
-// CMD buffer
-#define STACKSIZE 1024          // stack size
-#define TOP STACKSIZE-1         // top of stack
-#define BOTTOM 0                // bottom of stack
-#define LOWATER 32              // The stack low water mark.
+// Stack
+#define STACKSIZE 1024             // stack size
+#define TOP       STACKSIZE-1      // top of stack
+#define BOTTOM    0                // bottom of stack
+#define LOWATER   32               // The stack low water mark.
 
 //
 // static variables
 //
-static char stack[STACKSIZE];   // Read stack
-static int16_t sptr = TOP;      // The stack pointer
-static bool cmd_active = false; // Are we in a cmd?
-static int16_t bytes_pushed = 0;
-static int16_t bytes_popped = 0;
+static char    stack[STACKSIZE];   // The receiver stack
+static int16_t sptr = TOP;         // The stack pointer
+static bool    cmd_active = false; // Are we in a cmd?
 
-//
-// forward defs
-extern void do_finish();
-extern void do_read();
-extern void do_write();
-extern void do_blank();
 
 // ****************************************************************************
 // setCTS()
 // Note CTS is active low. So setCTS(1) means 'NOT clear to send'
+//
 void setCTS(bool b)
 {
     PORTAbits.RA2 = b;
@@ -57,6 +50,7 @@ void setCTS(bool b)
 
 // ****************************************************************************
 // reset the stack
+//
 void clear()
 {
     memset(stack, 0x00, STACKSIZE);
@@ -68,9 +62,9 @@ void clear()
 // push a char onto stack. 
 // If there are less than LOWATER chars space left on stack,
 // set CTS inactive. Else set CTS active.
+//
 void push(char c)
 {
-    bytes_pushed++;
     if (sptr >= 0) {
         stack[sptr--] = c;
 
@@ -83,7 +77,7 @@ void push(char c)
     } 
     else {
         while (1) {
-            // Error
+            // Error, light red led
             PORTEbits.RE2 = 1;
         }
     }
@@ -93,24 +87,22 @@ void push(char c)
 // pop a char from stack. 
 // If there are less than LOWATER chars space left on stack,
 // set CTS inactive. Else set CTS active.
+//
 char pop()
 {
-    bytes_popped++;
     if (sptr <= TOP) {
         char c = stack[++sptr];
-
         if (sptr < LOWATER) {
             setCTS(true);
         }
         else {
             setCTS(false);
         }
-
         return c;
     }
     else {
         while (1) {
-            // Error
+            // Error, light red led
             PORTEbits.RE2 = 1;
         }
     }
@@ -118,6 +110,7 @@ char pop()
 
 // ****************************************************************************
 // get the cmd at top of stack 
+//
 char top()
 {
     return stack[TOP-1];
@@ -125,6 +118,7 @@ char top()
 
 // ****************************************************************************
 // convert char to hex digit
+//
 uint8_t charToHexDigit(char c)
 {
   if (c >= 'a')
@@ -136,15 +130,10 @@ uint8_t charToHexDigit(char c)
 }
 
 // ****************************************************************************
-// main
-void main(void) {
-    
-    // Set the stack pointer
-    sptr = TOP;
-
-    // Initialise uart
-    uart_init(115200);
-    
+// Initialise the ports
+//
+void ports_init(void)
+{
     // disable analog else weird things happen
     ADCON0bits.ADON = 0;
     ADCON1 = 0x0F;
@@ -153,7 +142,7 @@ void main(void) {
     TRISEbits.RE0 = 0; // green LED, while loop
     TRISEbits.RE1 = 0; // orange LED, interrupt
     TRISEbits.RE2 = 0; // red LED, warning
-    PORTEbits.RE0 = 0;
+    PORTEbits.RE0 = 0; // set all off
     PORTEbits.RE1 = 0;
     PORTEbits.RE2 = 0;
     
@@ -178,46 +167,11 @@ void main(void) {
     // Port B4 = _CE1 (set hi for PGM))
     PORTBbits.RB3 = 0;
     PORTBbits.RB4 = 0;
-    
-    // Loop while waiting for commands
-    // We flash a green LED so we know we are listening...
-    while (true) {
-        PORTEbits.RE0 = 1;
-        __delay_ms(250);      
-        PORTEbits.RE0 = 0;
-        PORTEbits.RE1 = 0;
-        PORTEbits.RE2 = 0;
-        __delay_ms(250);
-        
-        if (cmd_active) {
-            // turn on red LED
-            PORTEbits.RE1 = 1;
-            
-            // pop the cmd off the stack
-            char cmd = top();
-            
-            // Do the cmd
-            if      (cmd == CMD_DONE) {
-                do_finish();
-            }
-            else if (cmd == CMD_READ) {
-                do_read();
-            }
-            else if (cmd == CMD_WRTE) {
-                do_write();
-            }
-            else if (cmd == CMD_CHEK) {
-                do_blank();
-            }
-
-            // Clear the cmd
-            clear();
-        } 
-    } 
 }
 
 // ****************************************************************************
 // high priority service routine for UART receive
+//
 void __interrupt(high_priority) high_isr(void)
 {
     char c = 0;
@@ -225,9 +179,6 @@ void __interrupt(high_priority) high_isr(void)
     // Disable interrupts
     INTCONbits.GIEH = 0;
     PIE1bits.RCIE=0;
-    
-    // Turn red led on
-    //PORTEbits.RE1 = 1;
     
     // Get the character from uart
     bool ok = uart_getc(&c);
@@ -248,6 +199,7 @@ void __interrupt(high_priority) high_isr(void)
 }
 
 // ****************************************************************************
+//
 //
 void do_finish()
 {
@@ -490,7 +442,55 @@ void do_write()
     uart_puts(s);
 }
 
+// ****************************************************************************
+// main
+void main(void) {
+    
+    // Set the receiver stack pointer
+    sptr = TOP;
 
+    // Initialise uart
+    uart_init(115200);
+    
+    // Initialise the IO ports
+    ports_init();
+    
+    // Loop while waiting for commands
+    // We flash a green LED so we know we are listening...
+    while (true) {
+        PORTEbits.RE0 = 1;
+        __delay_ms(250);      
+        PORTEbits.RE0 = 0;
+        PORTEbits.RE1 = 0;
+        PORTEbits.RE2 = 0;
+        __delay_ms(250);
+        
+        if (cmd_active) {
+            // turn on orange LED to show we're active
+            PORTEbits.RE1 = 1;
+            
+            // pop the cmd off the stack
+            char cmd = top();
+            
+            // Do the cmd
+            if      (cmd == CMD_DONE) {
+                do_finish();
+            }
+            else if (cmd == CMD_READ) {
+                do_read();
+            }
+            else if (cmd == CMD_WRTE) {
+                do_write();
+            }
+            else if (cmd == CMD_CHEK) {
+                do_blank();
+            }
+
+            // Clear the cmd
+            clear();
+        } 
+    } 
+}
 
 
 

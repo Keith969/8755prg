@@ -4,13 +4,12 @@ DESTDIR = .
 
 QT += core gui widgets serialport
 
-DEPENDPATH += . ./GeneratedFiles
-MOC_DIR += ./GeneratedFiles
-UI_DIR += ./GeneratedFiles
-OBJECTS_DIR += release
-RCC_DIR += ./GeneratedFiles
+DEPENDPATH  += . ./GeneratedFiles
+MOC_DIR     += ./GeneratedFiles
+UI_DIR      += ./GeneratedFiles
+RCC_DIR     += ./GeneratedFiles
 
-CONFIG += qt warn_off thread dll rtti sdk_no_version_check c++11
+CONFIG += qt warn_off thread sdk_no_version_check c++11
 CONFIG(debug, debug|release) {
     DEFINES += _DEBUG
     OBJECTS_DIR = debug

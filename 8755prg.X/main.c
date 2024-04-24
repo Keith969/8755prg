@@ -127,17 +127,12 @@ char top()
 // convert char to hex digit
 uint8_t charToHexDigit(char c)
 {
-  if (c >= 'A')
+  if (c >= 'a')
+    return c - 'a' + 10;
+  else if (c >= 'A')
     return c - 'A' + 10;
   else
     return c - '0';
-}
-
-// ****************************************************************************
-// convert a two char string to uint8_t
-uint8_t stringToByte(char c[2])
-{
-  return charToHexDigit(c[0]) * 16 + charToHexDigit(c[1]);
 }
 
 // ****************************************************************************
@@ -436,13 +431,14 @@ void do_write()
 
         // The sender sends a stream of hex ascii pairs.
 
-        // get two ascii chars from stack
-        while (! (c = pop()) )
-            __delay_us(100);
-        uint8_t hi = charToHexDigit(c);
+        // get two ascii chars from stack. Note they are popped
+        // in order of lobyte : hibyte
         while (! (c = pop()) )
             __delay_us(100);
         uint8_t lo = charToHexDigit(c);
+        while (! (c = pop()) )
+            __delay_us(100);
+        uint8_t hi = charToHexDigit(c);
         uint8_t data = hi*16+lo;
         
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10

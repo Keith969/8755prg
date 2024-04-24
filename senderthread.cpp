@@ -101,6 +101,7 @@ SenderThread::run()
             for (int32_t i=0; i < size; i+=2) {
                 // write 2 chars at a time...
                 QByteArray s = requestData.sliced(i,2);
+                s.toUpper();
                 serial.write(s);
                 // We wait for less than the program pulse time, so that
                 // the PIC receive buffer never dries out.

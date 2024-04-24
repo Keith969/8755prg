@@ -37,6 +37,8 @@
 static char stack[STACKSIZE];   // Read stack
 static int16_t sptr = TOP;      // The stack pointer
 static bool cmd_active = false; // Are we in a cmd?
+static int16_t bytes_pushed = 0;
+static int16_t bytes_popped = 0;
 
 //
 // forward defs
@@ -68,6 +70,7 @@ void clear()
 // set CTS inactive. Else set CTS active.
 void push(char c)
 {
+    bytes_pushed++;
     if (sptr >= 0) {
         stack[sptr--] = c;
 
@@ -78,6 +81,12 @@ void push(char c)
             setCTS(false);
         }
     } 
+    else {
+        while (1) {
+            // Error
+            PORTEbits.RE2 = 1;
+        }
+    }
 }
 
 // ****************************************************************************
@@ -86,6 +95,7 @@ void push(char c)
 // set CTS inactive. Else set CTS active.
 char pop()
 {
+    bytes_popped++;
     if (sptr <= TOP) {
         char c = stack[++sptr];
 
@@ -99,7 +109,10 @@ char pop()
         return c;
     }
     else {
-        return 0;
+        while (1) {
+            // Error
+            PORTEbits.RE2 = 1;
+        }
     }
 }
 
@@ -143,9 +156,11 @@ void main(void) {
     
     // Use port E for status LEDs
     TRISEbits.RE0 = 0; // green LED, while loop
-    TRISEbits.RE1 = 0; // red LED, interrupt
+    TRISEbits.RE1 = 0; // orange LED, interrupt
+    TRISEbits.RE2 = 0; // red LED, warning
     PORTEbits.RE0 = 0;
     PORTEbits.RE1 = 0;
+    PORTEbits.RE2 = 0;
     
     // Port A for uart control. Bits 0,1,4-7 spare.
     TRISAbits.RA2 = 0; // CTS is an active low output
@@ -176,6 +191,7 @@ void main(void) {
         __delay_ms(250);      
         PORTEbits.RE0 = 0;
         PORTEbits.RE1 = 0;
+        PORTEbits.RE2 = 0;
         __delay_ms(250);
         
         if (cmd_active) {
@@ -270,9 +286,9 @@ void do_blank()
 
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
         PORTD = addr & 0x00ff;
-        PORTCbits.RC0 = addr & 0x0100;
-        PORTCbits.RC1 = addr & 0x0200;
-        PORTCbits.RC2 = addr & 0x0400;
+        PORTCbits.RC0 = (addr >>  8) & 0x01;
+        PORTCbits.RC1 = (addr >>  9) & 0x01;
+        PORTCbits.RC2 = (addr >> 10) & 0x01;
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
@@ -344,9 +360,9 @@ void do_read()
 
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
         PORTD = addr & 0x00ff;
-        PORTCbits.RC0 = addr & 0x0100;
-        PORTCbits.RC1 = addr & 0x0200;
-        PORTCbits.RC2 = addr & 0x0400;
+        PORTCbits.RC0 = (addr >>  8) & 0x01;
+        PORTCbits.RC1 = (addr >>  9) & 0x01;
+        PORTCbits.RC2 = (addr >> 10) & 0x01;
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
@@ -431,11 +447,12 @@ void do_write()
         
         // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
         PORTD = addr & 0x00ff;
-        PORTCbits.RC0 = addr & 0x0100;
-        PORTCbits.RC1 = addr & 0x0200;
-        PORTCbits.RC2 = addr & 0x0400;
+        PORTCbits.RC0 = (addr >> 8)  & 0x01;
+        PORTCbits.RC1 = (addr >> 9)  & 0x01;
+        PORTCbits.RC2 = (addr >> 10) & 0x01;
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
+        __delay_us(1);
         PORTBbits.RB0 = 1;
         __delay_us(1);
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1

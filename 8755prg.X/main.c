@@ -20,26 +20,23 @@
 #include "uart.h"
 
 // cmds
-#define CMD_DONE '0'               // Sent to PC as ack
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
 
-// Stack
-#define STACKSIZE 1024             // stack size
-#define TOP       STACKSIZE-1      // top of stack
-#define BOTTOM    0                // bottom of stack
-#define LOWATER   32               // The stack low water mark.
+// Queue. See Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
+#define QUEUESIZE 1024             // queue size
 
 //
 // static variables
 //
-static char    stack[STACKSIZE];   // The receiver queue
-static int16_t sptr = TOP;         // The stack pointer
-static bool    cmd_active = false; // Are we in a cmd?
-static int16_t bytes_pushed = 0;   // received
-static int16_t bytes_popped = 0;   // used
+static char    queue[QUEUESIZE];   // The receiver queue
+static int16_t head = 0;           // head of the queue
+static int16_t tail = QUEUESIZE-1; // tail of the  queue
 
+static bool    cmd_active = false; // Are we in a cmd?
+static int16_t bytes_pushed = 0;   // pushed into queue
+static int16_t bytes_popped = 0;   // popped from queue
 
 // ****************************************************************************
 // setCTS()
@@ -51,69 +48,92 @@ void setCTS(bool b)
 }
 
 // ****************************************************************************
-// reset the stack
+// reset the queue
 //
-void clear()
+void makenull()
 {
-    memset(stack, 0x00, STACKSIZE);
-    sptr         = TOP;
+    memset(queue, 0x00, QUEUESIZE);
+    head = 0;
+    tail = QUEUESIZE-1; 
     cmd_active   = false;
 }
 
 // ****************************************************************************
+// Get the next position clockwise in array, handling begin/end of array.
+//
+int16_t addone(int16_t i)
+{
+    return (( i % QUEUESIZE) + 1);
+}
+
+// ****************************************************************************
+// How many items are in the queue?
+//
+int16_t size()
+{
+    return addone(tail) - head; // TODO
+}
+
+// ****************************************************************************
+// Is the queue empty?
+// An empty queue has head one more (clockwise) than tail.
+
+bool empty()
+{
+    if (addone(tail) == head)
+        return true;
+    return false;
+}
+// ****************************************************************************
 // push a char onto queue.
-// If there are less than LOWATER chars space left on stack,
-// set CTS inactive. Else set CTS active.
+// to enqueue (push), we move tail one position clockwise.
+// e.g. head=0, tail = 1023. after push, 
+//   queue[0]=c
+//   head = 0;
+//   tail = 0;
 //
 void push(char c)
-{
-    if (sptr >= 0) {
-        stack[sptr--] = c;
-
-        if (sptr < LOWATER) {
-            setCTS(true);
-        }
-        else {
-            setCTS(false);
-        }
-        bytes_pushed++;
-    } 
-    else {
-        while (1) {
-            // Error, light red led
-            PORTEbits.RE2 = 1;
-        }
+{    
+    if ( addone(addone(tail)) == head) {
+        // error - queue is full. Set error led.
+        // TODO: return false if queue full.
+        while (true)
+            TRISEbits.RE2 = 1;
     }
+    else {
+        tail = addone(tail);
+        queue[tail] = c;
+        bytes_pushed++;
+    }  
 }
 
 // ****************************************************************************
 // pop a char from queue. 
-// If there are less than LOWATER chars space left on stack,
-// set CTS inactive. Else set CTS active.
+// to dequeue, we move head one position clockwise.
+// e.g. after one push, head=0,tail=0
+// c = queue[0]
+// head = 1;
+// tail = 0; (note that now queue is empty))
 //
 char pop()
 {
-    // Disable interrupts
+    // pop() is called in write() and could be interrupted, which would
+    // cause havoc to the queue. So disable interrupts.)
     INTCONbits.GIEH = 0;
     PIE1bits.RCIE=0;
     
-    char c;
+    char c = NULL;
     
-    if (sptr <= TOP) {
-        c = stack[++sptr];
-        if (sptr < LOWATER) {
-            setCTS(true);
-        }
-        else {
-            setCTS(false);
-        }
-        bytes_popped++;  
+    if (empty()) {
+        // error - queue is empty.  Set error led.
+        // TODO: return false if empty.
+        while (true)
+            TRISEbits.RE2 = 1;
     }
     else {
-        while (1) {
-            // Error, light red led
-            PORTEbits.RE2 = 1;
-        }
+        c = queue[head];
+        head = addone(head);
+        bytes_popped++;
     }
     
     // Enable interrupts
@@ -123,11 +143,10 @@ char pop()
 }
 
 // ****************************************************************************
-// get the cmd at top of stack 
-//
-char top()
+// head - get the char at the head of the queue, without removing it.
+char head()
 {
-    return stack[TOP-1];
+    return queue[head];
 }
 
 // ****************************************************************************
@@ -200,9 +219,9 @@ void __interrupt(high_priority) high_isr(void)
         // Push the char onto stack
         push(c);
 
-        // Check if we have a cmd yet
-        if (stack[TOP] == '$' && (sptr < TOP)) {
-            // We have a command (2 chars at top of SP))
+        // Check if we have a cmd yet. 
+        if (head() == '$' && size() > 1) {
+            // We have a command (2 chars at head of queue))
             cmd_active = true;
         }
     }
@@ -210,14 +229,6 @@ void __interrupt(high_priority) high_isr(void)
     // Enable interrupts
     PIE1bits.RCIE=1;
     INTCONbits.GIEH = 1;
-}
-
-// ****************************************************************************
-//
-//
-void do_finish()
-{
-    clear();
 }
 
 // ****************************************************************************
@@ -396,8 +407,8 @@ void do_write()
         // The sender sends a stream of hex ascii pairs, onto a
         // stack.
 
-        // Get two ascii chars from stack. Note they are popped
-        // in order of lobyte : hibyte
+        // Get two ascii chars from queue. Note they are popped
+        // in order of lobyte : hibyte TODO: are they?
         c = pop();
         uint8_t lo = charToHexDigit(c);
         c = pop();
@@ -455,9 +466,6 @@ void do_write()
 // ****************************************************************************
 // main
 void main(void) {
-    
-    // Set the receiver stack pointer
-    sptr = TOP;
 
     // Initialise uart
     uart_init(115200);
@@ -480,13 +488,12 @@ void main(void) {
             PORTEbits.RE1 = 1;
             
             // pop the cmd off the stack
-            char cmd = top();
+            char cmd = pop();
+            // and the $
+            pop();
             
             // Do the cmd
-            if      (cmd == CMD_DONE) {
-                do_finish();
-            }
-            else if (cmd == CMD_READ) {
+            if      (cmd == CMD_READ) {
                 do_read();
             }
             else if (cmd == CMD_WRTE) {
@@ -497,7 +504,7 @@ void main(void) {
             }
 
             // Clear the cmd
-            clear();
+            makenull();
         } 
     } 
 }

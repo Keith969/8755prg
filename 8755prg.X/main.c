@@ -184,10 +184,10 @@ void ports_init(void)
     ADCON1 = 0x0F;
     
     // Use port E for status LEDs
-    TRISEbits.RE0 = 0; // green LED, while loop
+    TRISEbits.RE0 = 0; // green  LED, while loop
     TRISEbits.RE1 = 0; // orange LED, interrupt
-    TRISEbits.RE2 = 0; // red LED, warning
-    PORTEbits.RE0 = 0; // set all off
+    TRISEbits.RE2 = 0; // red    LED, warning
+    PORTEbits.RE0 = 0;
     PORTEbits.RE1 = 0;
     PORTEbits.RE2 = 0;
     
@@ -274,6 +274,7 @@ void do_blank()
         PORTCbits.RC0 = (addr >>  8) & 0x01;
         PORTCbits.RC1 = (addr >>  9) & 0x01;
         PORTCbits.RC2 = (addr >> 10) & 0x01;
+        __delay_us(1);
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
@@ -284,14 +285,17 @@ void do_blank()
         
         // Set port D to input
         TRISD = 0xff;
+        __delay_us(10);
+        
         // Set _RD_ lo to enable reading
         PORTBbits.RB2 = 0;
-        __delay_us(1);
+        __delay_us(10);
         
         // Read port D
         uint8_t data = PORTD;
 
         // Set _RD hi
+        __delay_us(10);
         PORTBbits.RB2 = 1;
 
         // Set port D back to output
@@ -346,6 +350,7 @@ void do_read()
         PORTCbits.RC0 = (addr >>  8) & 0x01;
         PORTCbits.RC1 = (addr >>  9) & 0x01;
         PORTCbits.RC2 = (addr >> 10) & 0x01;
+        __delay_us(1);
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
@@ -356,14 +361,17 @@ void do_read()
         
         // Set port D to input
         TRISD = 0xff;
+        __delay_us(10);
+        
         // Set _RD_ lo to enable reading
         PORTBbits.RB2 = 0;
-        __delay_us(1);
+        __delay_us(10);
         
         // Read port D
         uint8_t data = PORTD;
 
         // Set _RD hi
+        __delay_us(10);
         PORTBbits.RB2 = 1;
 
         // Set port D back to output
@@ -433,11 +441,11 @@ void do_write()
         PORTCbits.RC0 = (addr >> 8)  & 0x01;
         PORTCbits.RC1 = (addr >> 9)  & 0x01;
         PORTCbits.RC2 = (addr >> 10) & 0x01;
+        __delay_us(1);
         
-        // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
-        __delay_us(1);
+        // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches   
         PORTBbits.RB0 = 1;
-        __delay_us(1);
+        NOP();NOP();
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
         PORTBbits.RB0 = 0;
         __delay_us(1);

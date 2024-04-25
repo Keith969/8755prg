@@ -21,30 +21,35 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     // Set the textEdit font to fixed spacing
     ui.textEdit->setFontFamily("Courier");
 
+    // Set shortcut keys for actions
+    ui.actionOpen_HEX_file->setShortcut(tr("Ctrl+O"));
+    ui.actionSave_HEX_file->setShortcut(tr("Ctrl+S"));
+    ui.actionQuit->setShortcut(tr("Ctrl+Q"));
+
     // Set connections
-    QObject::connect(ui.actionOpen_HEX_file, SIGNAL(triggered()), this, SLOT(openHexFile()));
-    QObject::connect(ui.actionSave_HEX_file, SIGNAL(triggered()), this, SLOT(saveHexFile()));
-    QObject::connect(ui.actionQuit,          SIGNAL(triggered()), this, SLOT(quit()));
-    QObject::connect(ui.readButton,          SIGNAL(pressed()),   this, SLOT(read()));
-    QObject::connect(ui.checkButton,         SIGNAL(pressed()),   this, SLOT(check()));
-    QObject::connect(ui.writeButton,         SIGNAL(pressed()),   this, SLOT(write()));
+    QObject::connect(ui.actionOpen_HEX_file, SIGNAL(triggered()),                this, SLOT(openHexFile()));
+    QObject::connect(ui.actionSave_HEX_file, SIGNAL(triggered()),                this, SLOT(saveHexFile()));
+    QObject::connect(ui.actionQuit,          SIGNAL(triggered()),                this, SLOT(quit()));
+    QObject::connect(ui.readButton,          SIGNAL(pressed()),                  this, SLOT(read()));
+    QObject::connect(ui.checkButton,         SIGNAL(pressed()),                  this, SLOT(check()));
+    QObject::connect(ui.writeButton,         SIGNAL(pressed()),                  this, SLOT(write()));
 
     // Sender read thread
     QObject::connect(&m_senderThread,        SIGNAL(response(const QString &)),  this, SLOT(senderShowResponse(const QString &)));
     QObject::connect(&m_senderThread,        SIGNAL(error(const QString &)),     this, SLOT(senderProcessError(const QString &)));
     QObject::connect(&m_senderThread,        SIGNAL(timeout(const QString &)),   this, SLOT(senderProcessTimeout(const QString &)));
 
-    // Stuff the serial pport combo box
+    // Stuff the serial port combo box
     const auto infos = QSerialPortInfo::availablePorts();
     for (const QSerialPortInfo &info : infos) {
         QString portName = info.portName();
-        // Lets ignore bluetooth stuff...
+        // Lets ignore bluetooth stuff, we don't use that
         if (! portName.contains("bluetooth", Qt::CaseInsensitive) && ! portName.contains("BLTH", Qt::CaseInsensitive)) {
             ui.serialPort->addItem(info.portName());
         }
     }
 
-    // We only allow this baud rate for now
+    // We only allow this baud rate as its hardcoded into PIC firmware.
     ui.baudRate->addItem("115200");
 
     this->setStatusBar(&m_statusBar);
@@ -65,13 +70,32 @@ guiMainWindow::~guiMainWindow()
 
 // *****************************************************************************
 // Function     [ openHexFile ]
-// Description  [ ]
+// Description  [ Reads a hex file into memory and displays it on the textEdit ]
 // *****************************************************************************
 void
 guiMainWindow::openHexFile()
 {
     QString fileName = QFileDialog::getOpenFileName(this, "Open HEX File...", ".", "*.hex");
     m_HexFile->readHex(fileName);
+
+    // Display it in the textEdit widget
+    clearText();
+    std::vector<hexDataChunk> data = m_HexFile->hexData();
+    for (auto iter = data.begin(); iter != data.end(); ++iter) {
+
+        hexDataChunk chunk = *iter;
+        QString line;
+
+        // Write the address
+        line.append(QString("%1:").arg(chunk.address(), 4, 16, QChar('0')));
+
+        // Write the the data
+        for (int32_t i = 0; i < chunk.byteCount(); ++i) {
+            QString s = QString(" %1").arg(chunk.data().at(i), 2, 16, QChar('0'));
+            line.append(s);
+        }
+        appendText(line);
+    }
 }
 
 // *****************************************************************************
@@ -109,7 +133,7 @@ guiMainWindow::saveHexFile()
         for (auto token_iter = textlist.begin(); token_iter != textlist.end(); ++token_iter) {
 
             QString addr = *token_iter;
-            // The first ite is the address followed by ':'
+            // The first item is the address followed by ':'
             if (addr.contains(QChar(':'))) {
                 addr.remove(':');
                 address = addr.toUShort(&ok, 16);
@@ -154,8 +178,6 @@ guiMainWindow::getFlowControl()
         return 0;
     else if (ui.flowRtsCts->isChecked())
         return 1;
-    else if (ui.flowXonXoff->isChecked())
-        return 2;
 }
 
 // *****************************************************************************
@@ -176,7 +198,7 @@ guiMainWindow::read()
     // Send the cmd.
     m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
 
-    statusBar()->showMessage("Read data OK");
+    statusBar()->showMessage("Reading...");
 }
 
 // *****************************************************************************
@@ -198,7 +220,7 @@ guiMainWindow::check()
     // Send the cmd.
     m_senderThread.transaction(portName, CMD_CHEK, timeout, baudRate, flowControl);
 
-    statusBar()->showMessage("Check OK");
+    statusBar()->showMessage("Checking...");
 }
 
 // *****************************************************************************
@@ -233,12 +255,10 @@ guiMainWindow::write()
                 request.append(c);
             }
         }
-        QString s = QString("Sent %1 bytes").arg(request.size());
-        appendText(s);
 
         m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
 
-        statusBar()->showMessage("Write data OK");
+        statusBar()->showMessage("Writing...");
     }
     else {
         clearText();
@@ -265,6 +285,7 @@ guiMainWindow::senderShowResponse(const QString &s)
 {
     clearText();
     appendText(s);
+    statusBar()->showMessage("Ready");
 }
 
 // *****************************************************************************
@@ -276,6 +297,7 @@ guiMainWindow::senderProcessError(const QString &s)
 {
     QString message = QString("Error %1").arg(s);
     QMessageBox::warning(nullptr, "Sender error", message);
+    statusBar()->showMessage("Ready");
 }
 
 // *****************************************************************************
@@ -287,5 +309,6 @@ guiMainWindow::senderProcessTimeout(const QString &s)
 {
     QString message = QString("Timeout %1").arg(s);
     QMessageBox::warning(nullptr, "Sender timeout", message);
+    statusBar()->showMessage("Ready");
 }
 

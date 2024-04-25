@@ -24,15 +24,18 @@
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
 
-// Queue. See Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
-#define QUEUESIZE 1024             // queue size
+// Received chars are put into a queue.
+// See e.g. Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
+#define QUEUESIZE 1024             // Queue size
+#define ENDQUEUE  QUEUESIZE-1      // End of queue
+#define HIWATER   QUEUESIZE-16     // The highwater mark, stop sending.
 
 //
 // static variables
 //
 static char    queue[QUEUESIZE];   // The receiver queue
 static int16_t head = 0;           // head of the queue
-static int16_t tail = QUEUESIZE-1; // tail of the  queue
+static int16_t tail = ENDQUEUE;    // tail of the  queue
 
 static bool    cmd_active = false; // Are we in a cmd?
 static int16_t bytes_pushed = 0;   // pushed into queue
@@ -40,7 +43,7 @@ static int16_t bytes_popped = 0;   // popped from queue
 
 // ****************************************************************************
 // setCTS()
-// Note CTS is active low. So setCTS(1) means 'NOT clear to send'
+// Note CTS is active low. So setCTS(1) means 'stop sending'
 //
 void setCTS(bool b)
 {
@@ -54,7 +57,7 @@ void makenull()
 {
     memset(queue, 0x00, QUEUESIZE);
     head = 0;
-    tail = QUEUESIZE-1; 
+    tail = ENDQUEUE; 
     cmd_active   = false;
 }
 
@@ -63,21 +66,30 @@ void makenull()
 //
 int16_t addone(int16_t i)
 {
-    return (( i % QUEUESIZE) + 1);
+    if (i == ENDQUEUE)
+        return 0;
+    return i+1;
 }
 
 // ****************************************************************************
-// How many items are in the queue?
+// How many items are in the queue? Set CTS if more than hiwater mark.
 //
 int16_t size()
 {
-    return addone(tail) - head; // TODO
+    int16_t s = addone(tail) - head;
+    if (s > HIWATER) {
+        setCTS(true);
+    }
+    else {
+        setCTS(false);
+    }
+    return s;
 }
 
 // ****************************************************************************
 // Is the queue empty?
 // An empty queue has head one more (clockwise) than tail.
-
+//
 bool empty()
 {
     if (addone(tail) == head)
@@ -87,7 +99,7 @@ bool empty()
 // ****************************************************************************
 // push a char onto queue.
 // to enqueue (push), we move tail one position clockwise.
-// e.g. head=0, tail = 1023. after push, 
+// e.g. head=0, tail = ENDQUEUE. after push, 
 //   queue[0]=c
 //   head = 0;
 //   tail = 0;
@@ -113,7 +125,7 @@ void push(char c)
 // e.g. after one push, head=0,tail=0
 // c = queue[0]
 // head = 1;
-// tail = 0; (note that now queue is empty))
+// tail = 0; (note that now queue is empty as tail+1 == head))
 //
 char pop()
 {
@@ -122,7 +134,7 @@ char pop()
     INTCONbits.GIEH = 0;
     PIE1bits.RCIE=0;
     
-    char c = NULL;
+    char c = 0;
     
     if (empty()) {
         // error - queue is empty.  Set error led.
@@ -143,14 +155,14 @@ char pop()
 }
 
 // ****************************************************************************
-// head - get the char at the head of the queue, without removing it.
-char head()
+// first - get the first char pushed on the queue, without removing it.
+char first()
 {
     return queue[head];
 }
 
 // ****************************************************************************
-// convert char to hex digit
+// convert char to hex digit. Handle upper and lower case.
 //
 uint8_t charToHexDigit(char c)
 {
@@ -212,7 +224,7 @@ void __interrupt(high_priority) high_isr(void)
     // Disable interrupts
     INTCONbits.GIEH = 0;
     PIE1bits.RCIE=0;
-    
+  
     // Get the character from uart
     bool ok = uart_getc(&c);
     if (ok) {
@@ -220,7 +232,8 @@ void __interrupt(high_priority) high_isr(void)
         push(c);
 
         // Check if we have a cmd yet. 
-        if (head() == '$' && size() > 1) {
+        int16_t n = size();
+        if ( (first() == '$') && n > 1) {
             // We have a command (2 chars at head of queue))
             cmd_active = true;
         }
@@ -487,10 +500,10 @@ void main(void) {
             // turn on orange LED to show we're active
             PORTEbits.RE1 = 1;
             
-            // pop the cmd off the stack
+            // pop the $
             char cmd = pop();
-            // and the $
-            pop();
+            // and the cmd
+            cmd = pop();
             
             // Do the cmd
             if      (cmd == CMD_READ) {

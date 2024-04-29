@@ -1,6 +1,12 @@
 // Copyright (C) 2012 Denis Shienkov <denis.shienkov@gmail.com>
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
+// *****************************************************************************
+// File         [ SenderThread.cpp ]
+// Description  [ Implementation of the SenderThread class ]
+// Author       [ Keith Sabine ]
+// *****************************************************************************
+
 #include "senderthread.h"
 
 #include <QSerialPort>

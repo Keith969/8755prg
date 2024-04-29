@@ -4,10 +4,20 @@
 #ifndef SENDERTHREAD_H
 #define SENDERTHREAD_H
 
+// *****************************************************************************
+// File         [ SenderThread.h ]
+// Description  [ Implementation of the SenderThread class ]
+// Author       [ Keith Sabine ]
+// *****************************************************************************
+
 #include <QMutex>
 #include <QThread>
 #include <QWaitCondition>
 
+// *****************************************************************************
+// Class        [ SenderThread ]
+// Description  [ ]
+// *****************************************************************************
 class SenderThread : public QThread
 {
     Q_OBJECT

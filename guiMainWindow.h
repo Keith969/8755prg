@@ -11,6 +11,7 @@
 #include "ui_guiMainWindow.h"
 #include "hexFile.h"
 #include "senderthread.h"
+#include "qLedWidget.h"
 
 #define CMD_DONE "$0"
 #define CMD_READ "$1"
@@ -44,6 +45,9 @@ public slots:
     void                   appendText(const QString& s) { ui.textEdit->append(s); }
     void                   clearText() { ui.textEdit->clear(); }
 
+    void                   setLedPower(bool pwr) { m_ledWidget->setPower(pwr); }
+    void                   setLedColour(const QColor& color) { m_ledWidget->setColour(color); }
+
 private:
     size_t                 size() {return m_HexFile->size();}
     int32_t                getFlowControl();
@@ -60,6 +64,7 @@ private:
     // Status bar
     QStatusBar             m_statusBar;
     QLabel                 m_statusMsg;
+    QLedWidget           * m_ledWidget;
 };
 
 #endif /* GUIMAINWINDOW_H */

@@ -7,8 +7,8 @@
 #include "guiMainWindow.h"
 
 #include <QtWidgets/QFileDialog>
-#include <QMessageBox>
-#include <QSerialPortInfo>
+#include <QtWidgets/QMessageBox>
+#include <QtSerialPort/QSerialPortInfo>
 
 // *****************************************************************************
 // Function     [ constructor ]
@@ -53,8 +53,14 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     ui.baudRate->addItem("115200");
 
     this->setStatusBar(&m_statusBar);
+    m_ledWidget = new QLedWidget;
+    setLedColour(Qt::green);
+    setLedPower(true);
+    statusBar()->insertPermanentWidget(1, m_ledWidget);
+    QLabel* label = new QLabel("Status");
+    statusBar()->insertPermanentWidget(0, label);
     statusBar()->showMessage("Ready");
-
+   
     m_HexFile = new hexFile;
     m_HexFile->setMainWindow(this);
 }
@@ -176,7 +182,7 @@ guiMainWindow::getFlowControl()
 {
     if (ui.flowNone->isChecked())
         return 0;
-    else if (ui.flowRtsCts->isChecked())
+    /*else if (ui.flowRtsCts->isChecked())*/
         return 1;
 }
 
@@ -194,6 +200,8 @@ guiMainWindow::read()
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
+
+    setLedColour(Qt::red);
 
     // Send the cmd.
     m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
@@ -215,7 +223,7 @@ guiMainWindow::check()
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
-    qApp->processEvents();
+    setLedColour(Qt::red);
 
     // Send the cmd.
     m_senderThread.transaction(portName, CMD_CHEK, timeout, baudRate, flowControl);
@@ -256,6 +264,8 @@ guiMainWindow::write()
             }
         }
 
+        setLedColour(Qt::red);
+
         m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
 
         statusBar()->showMessage("Writing...");
@@ -286,6 +296,7 @@ guiMainWindow::senderShowResponse(const QString &s)
     clearText();
     appendText(s);
     statusBar()->showMessage("Ready");
+    setLedColour(Qt::green);
 }
 
 // *****************************************************************************
@@ -298,6 +309,7 @@ guiMainWindow::senderProcessError(const QString &s)
     QString message = QString("Error %1").arg(s);
     QMessageBox::warning(nullptr, "Sender error", message);
     statusBar()->showMessage("Ready");
+    setLedColour(Qt::green);
 }
 
 // *****************************************************************************
@@ -310,5 +322,6 @@ guiMainWindow::senderProcessTimeout(const QString &s)
     QString message = QString("Timeout %1").arg(s);
     QMessageBox::warning(nullptr, "Sender timeout", message);
     statusBar()->showMessage("Ready");
+    setLedColour(Qt::green);
 }
 

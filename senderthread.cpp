@@ -9,7 +9,7 @@
 
 #include "senderthread.h"
 
-#include <QSerialPort>
+#include <QtSerialPort/QSerialPort>
 #include <QTime>
 
 // *****************************************************************************

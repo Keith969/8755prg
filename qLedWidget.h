@@ -7,7 +7,8 @@
 // Author       [ Keith Sabine ]
 // *****************************************************************************
 
-#include <QWidget>
+#include <QtGui/QColor>
+#include <QtWidgets/QWidget>
 #include <QPainter>
 
 // *****************************************************************************
@@ -25,22 +26,40 @@ class QLedWidget : public QWidget
 public:
     explicit QLedWidget(QWidget *parent = nullptr) :
         QWidget(parent),
-        m_power(false) {}
+        m_power(false),
+        m_colour(Qt::red)
+    {
+        setMinimumSize(QSize(20, 20));
+    }
 
     bool power() const
     {
         return m_power;
     }
 
+    QColor colour() const
+    {
+        return m_colour;
+    }
+
 signals:
     void powerChanged();
+    void colourChanged();
 
 public slots:
     void setPower(bool power)
     {
-        if(power!=m_power){
+        if(power != m_power){
             m_power = power;
             emit powerChanged();
+            update();
+        }
+    }
+    void setColour(const QColor &colour)
+    {
+        if (colour != m_colour) {
+            m_colour = colour;
+            emit colourChanged();
             update();
         }
     }
@@ -50,16 +69,21 @@ protected:
     {
         Q_UNUSED(event)
         QPainter ledPainter(this);
-        ledPainter.setPen(Qt::black);
-        if(m_power)
-            ledPainter.setBrush(Qt::red);
-        else
+        ledPainter.setRenderHint(QPainter::Antialiasing);
+        QPen pen(Qt::darkGray);
+        ledPainter.setPen(pen);
+        if (m_power) {
+            ledPainter.setBrush(m_colour);
+        }
+        else {
             ledPainter.setBrush(Qt::NoBrush);
+        }
         ledPainter.drawEllipse(rect());
     }
 
 private:
-    bool m_power;
+    bool            m_power;
+    QColor          m_colour;
 };
 
 #endif /* QLEDWIDGET_H */

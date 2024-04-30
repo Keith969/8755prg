@@ -19,6 +19,10 @@
 #include "stdio.h"
 #include "uart.h"
 
+// Useful defines
+#define INPUT  0xFF
+#define OUTPUT 0x00
+
 // cmds
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
@@ -196,15 +200,15 @@ void ports_init(void)
     TRISAbits.RA3 = 1; // RTS is an active low input
     PORTAbits.RA2 = 0; // assert CTS
 
-    // Port D for address bits AD0-A7
-    TRISD = 0;
+    // Port D output for address bits AD0-A7
+    TRISD = OUTPUT;
     
     // Port C bits 0,1,2 = A8-A10
     // (uart uses bits 6,7). Bits 3/4/5 spare.
     TRISC = 0b11000000;
     
     // Port B for EPROM control. Bits 5-7 spare.
-    TRISB = 0;
+    TRISB = OUTPUT;
     // Port B0 = ALE
     // Port B1 = CE2
     // Port B2 = _RD
@@ -249,11 +253,15 @@ void __interrupt(high_priority) high_isr(void)
 //
 void setup_address(uint16_t addr)
 {
-        // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
-        PORTD = addr & 0x00ff;
-        PORTCbits.RC0 = (addr >>  8) & 0x01;
-        PORTCbits.RC1 = (addr >>  9) & 0x01;
-        PORTCbits.RC2 = (addr >> 10) & 0x01;
+        // Set port D to output
+        TRISD = OUTPUT;
+    
+        // Set the address lines. D0-7 is A0-7, C0-2 is A8-10
+        uint8_t hi = addr >> 8;
+        PORTD       = addr & 0x00ff;
+        PORTCbits.RC0 = hi & 0x01;
+        PORTCbits.RC1 = hi >> 1 & 0x01;
+        PORTCbits.RC2 = hi >> 2 & 0x01;
         __delay_us(1);
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
@@ -270,22 +278,25 @@ void setup_address(uint16_t addr)
 uint8_t  read_port()
 {
     // Set port D to input
-    TRISD = 0xff;
-    __delay_us(10);
+    TRISD = INPUT;
+    __delay_us(5);
 
     // Set _RD_ lo to enable reading
     PORTBbits.RB2 = 0;
-    __delay_us(10);
+    __delay_us(2);
 
     // Read port D
     uint8_t data = PORTD;
 
     // Set _RD hi
-    __delay_us(10);
+    __delay_us(2);
     PORTBbits.RB2 = 1;
 
     // Set port D back to output
-    TRISD = 0x00;
+    __delay_us(5);
+    TRISD = OUTPUT;
+    
+    return data;
 }
 
 // ****************************************************************************
@@ -321,9 +332,9 @@ void do_blank()
                       
         if (data != 0xff) {
             uart_puts("Blank check fail at address ");
-            sprintf(ads, "0x%x = ", addr);
+            sprintf(ads, "0x%04x = ", addr);
             uart_puts(ads);
-            sprintf(ads, "0x%x\n", data);
+            sprintf(ads, "0x%02x\n", data);
             uart_puts(ads);
             ok = false;
             break;
@@ -348,13 +359,14 @@ void do_read()
     uint16_t addr;
     char ads[16];
     uint8_t col=0;
-        
-    // Set CE2 hi to enable reading
+    
+    // Set _CE1 lo - enabled
+    PORTBbits.RB4 = 0;    
+    // Set CE2 hi - enabled
     PORTBbits.RB1 = 1;
-    // Set PGM lo
+    // Set PGM lo - disabled
     PORTBbits.RB3 = 0;
-    // Set _CE1 lo
-    PORTBbits.RB4 = 0;
+
         
     for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
@@ -386,7 +398,7 @@ void do_read()
         }
     }
     
-    // Set CE2 lo to disable reading
+    // Set CE2 lo - disable
     PORTBbits.RB1 = 0;
 }
 
@@ -395,27 +407,27 @@ void do_read()
 //
 void write_port(uint8_t data)
 {
-        // Write the byte to port D
-        PORTD = data;
-        
-        __delay_us(10);
-        
-        // Set CE1 hi 
-        PORTBbits.RB4 = 1;
-        
-        // Activate PGM pulse for 50mS
-        __delay_us(1);
-        PORTBbits.RB3 = 1;
-        
-        __delay_ms(50);
-        
-        // Deactivate PGM pulse
-        PORTBbits.RB3 = 0;
-        __delay_us(1);
-        
-        // Set CE1 lo
-        PORTBbits.RB4 = 0;
-        __delay_us(1);
+    // Write the byte to port D
+     __delay_us(10);
+    PORTD = data;
+
+    // Set CE1 hi 
+    __delay_us(10);
+    PORTBbits.RB4 = 1;
+
+    // Activate PGM pulse for 50mS
+    __delay_us(1);
+    PORTBbits.RB3 = 1;
+
+    __delay_ms(50);
+
+    // Deactivate PGM pulse
+    PORTBbits.RB3 = 0;
+    __delay_us(1);
+
+    // Set CE1 lo
+    PORTBbits.RB4 = 0;
+    __delay_us(1);
 }
 
 // ****************************************************************************
@@ -425,17 +437,17 @@ void write_port(uint8_t data)
 void do_write()
 {
     uint16_t addr;
-    char ads[32];   
+    char ads[48];   
     char c;
     
     // Set port D to output
-    TRISD = 0x00;
+    TRISD = OUTPUT;
         
-    // Set CE2 hi to enable writing
+    // Set CE2 hi - enable
     PORTBbits.RB1 = 1;
-    // Set _RD hi
+    // Set _RD hi - disable
     PORTBbits.RB2 = 1;
-    // Set PGM lo
+    // Set PGM lo - disable
     PORTBbits.RB3 = 0;
         
     for (addr = 0; addr < 2048; addr++) {
@@ -465,17 +477,17 @@ void do_write()
             if (read != data) {
                 // Set CE2 lo to disable writing.
                 PORTBbits.RB1 = 0;
-                sprintf(ads, "write fail, write=%02x, read=%02x\n", data, read);
+                sprintf(ads, "write verify fail, write=%02x, read=%02x\n", data, read);
                 uart_puts(ads);
                 return;
             }
         /* verify */
     }
     
-    // Set CE2 lo to disable writing.
+    // Set CE2 lo - disable
     PORTBbits.RB1 = 0;
     
-    sprintf(ads, "pushed: %d, popped: %d\n", bytes_pushed, bytes_popped);
+    sprintf(ads, "write completed & verified\n");
     uart_puts(ads);
 }
 
@@ -504,9 +516,9 @@ void main(void) {
             PORTEbits.RE1 = 1;
             
             // pop the $
-            char cmd = pop();
+            pop();
             // and the cmd
-            cmd = pop();
+            char cmd = pop();
             
             // Do the cmd
             if      (cmd == CMD_READ) {

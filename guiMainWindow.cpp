@@ -53,12 +53,15 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     ui.baudRate->addItem("115200");
 
     this->setStatusBar(&m_statusBar);
+
+    QLabel* label = new QLabel("Status");
+    statusBar()->insertPermanentWidget(0, label);
+
     m_ledWidget = new QLedWidget;
     setLedColour(Qt::green);
     setLedPower(true);
     statusBar()->insertPermanentWidget(1, m_ledWidget);
-    QLabel* label = new QLabel("Status");
-    statusBar()->insertPermanentWidget(0, label);
+
     statusBar()->showMessage("Ready");
    
     m_HexFile = new hexFile;

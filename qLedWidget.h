@@ -13,7 +13,9 @@
 
 // *****************************************************************************
 // Class        [ QLedWidget ]
-// Description  [ A LED widget ]
+// Description  [ A LED widget. We draw a coloured circle with a gradient
+//                fill to get a slightly real looking LED.
+//              ]
 // *****************************************************************************
 class QLedWidget : public QWidget
 {
@@ -67,13 +69,23 @@ public slots:
 protected:
     virtual void paintEvent(QPaintEvent *event) override
     {
+        // Centre of the LED
+        QPointF centre = rect().center();
+        // Width of the LED
+        double radius = rect().width()/2.0;
+        // Create a gradient, white in centre, color at edge.
+        QRadialGradient radialGrad(centre, radius);
+        radialGrad.setColorAt(1, m_colour);
+        radialGrad.setColorAt(0, Qt::white);
+
         Q_UNUSED(event)
         QPainter ledPainter(this);
         ledPainter.setRenderHint(QPainter::Antialiasing);
-        QPen pen(Qt::darkGray);
-        ledPainter.setPen(pen);
+        ledPainter.setPen(Qt::NoPen);
+        QBrush brush(radialGrad);
         if (m_power) {
-            ledPainter.setBrush(m_colour);
+            brush.setColor(m_colour);
+            ledPainter.setBrush(brush);
         }
         else {
             ledPainter.setBrush(Qt::NoBrush);

@@ -245,6 +245,50 @@ void __interrupt(high_priority) high_isr(void)
 }
 
 // ****************************************************************************
+// Set the address on ports D and C, and load by pulsing ALE.
+//
+void setup_address(uint16_t addr)
+{
+        // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
+        PORTD = addr & 0x00ff;
+        PORTCbits.RC0 = (addr >>  8) & 0x01;
+        PORTCbits.RC1 = (addr >>  9) & 0x01;
+        PORTCbits.RC2 = (addr >> 10) & 0x01;
+        __delay_us(1);
+        
+        // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
+        PORTBbits.RB0 = 1;
+        __delay_us(1);
+        // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
+        PORTBbits.RB0 = 0;
+        __delay_us(1);
+}
+
+// ****************************************************************************
+// Read a byte from port D
+//
+uint8_t  read_port()
+{
+    // Set port D to input
+    TRISD = 0xff;
+    __delay_us(10);
+
+    // Set _RD_ lo to enable reading
+    PORTBbits.RB2 = 0;
+    __delay_us(10);
+
+    // Read port D
+    uint8_t data = PORTD;
+
+    // Set _RD hi
+    __delay_us(10);
+    PORTBbits.RB2 = 1;
+
+    // Set port D back to output
+    TRISD = 0x00;
+}
+
+// ****************************************************************************
 // check eprom is wiped clean
 // Timing critical code. At 20MHz xtal clock, each instruction = 200nS
 //
@@ -269,38 +313,12 @@ void do_blank()
             return;
         }
 
-        // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
-        PORTD = addr & 0x00ff;
-        PORTCbits.RC0 = (addr >>  8) & 0x01;
-        PORTCbits.RC1 = (addr >>  9) & 0x01;
-        PORTCbits.RC2 = (addr >> 10) & 0x01;
-        __delay_us(1);
-        
-        // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
-        PORTBbits.RB0 = 1;
-        __delay_us(1);
-        // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
-        PORTBbits.RB0 = 0;
-        __delay_us(1);
-        
-        // Set port D to input
-        TRISD = 0xff;
-        __delay_us(10);
-        
-        // Set _RD_ lo to enable reading
-        PORTBbits.RB2 = 0;
-        __delay_us(10);
+        // Latch the 16 bit address.
+        setup_address(addr);
         
         // Read port D
-        uint8_t data = PORTD;
-
-        // Set _RD hi
-        __delay_us(10);
-        PORTBbits.RB2 = 1;
-
-        // Set port D back to output
-        TRISD = 0x00;
-        
+        uint8_t data = read_port();
+                      
         if (data != 0xff) {
             uart_puts("Blank check fail at address ");
             sprintf(ads, "0x%x = ", addr);
@@ -345,37 +363,11 @@ void do_read()
             return;
         }
 
-        // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
-        PORTD = addr & 0x00ff;
-        PORTCbits.RC0 = (addr >>  8) & 0x01;
-        PORTCbits.RC1 = (addr >>  9) & 0x01;
-        PORTCbits.RC2 = (addr >> 10) & 0x01;
-        __delay_us(1);
-        
-        // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
-        PORTBbits.RB0 = 1;
-        __delay_us(1);
-        // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
-        PORTBbits.RB0 = 0;
-        __delay_us(1);
-        
-        // Set port D to input
-        TRISD = 0xff;
-        __delay_us(10);
-        
-        // Set _RD_ lo to enable reading
-        PORTBbits.RB2 = 0;
-        __delay_us(10);
+        // Latch the 16 bit address.
+        setup_address(addr);
         
         // Read port D
-        uint8_t data = PORTD;
-
-        // Set _RD hi
-        __delay_us(10);
-        PORTBbits.RB2 = 1;
-
-        // Set port D back to output
-        TRISD = 0x00;
+        uint8_t data = read_port();
         
         // Write address
         if (col == 0) {
@@ -396,6 +388,34 @@ void do_read()
     
     // Set CE2 lo to disable reading
     PORTBbits.RB1 = 0;
+}
+
+// ****************************************************************************
+// Write a byte
+//
+void write_port(uint8_t data)
+{
+        // Write the byte to port D
+        PORTD = data;
+        
+        __delay_us(10);
+        
+        // Set CE1 hi 
+        PORTBbits.RB4 = 1;
+        
+        // Activate PGM pulse for 50mS
+        __delay_us(1);
+        PORTBbits.RB3 = 1;
+        
+        __delay_ms(50);
+        
+        // Deactivate PGM pulse
+        PORTBbits.RB3 = 0;
+        __delay_us(1);
+        
+        // Set CE1 lo
+        PORTBbits.RB4 = 0;
+        __delay_us(1);
 }
 
 // ****************************************************************************
@@ -425,56 +445,31 @@ void do_write()
             return;
         }
 
-        // The sender sends a stream of hex ascii pairs, onto a
-        // stack.
-
-        // Get two ascii chars from queue. Note they are popped
-        // in order of lobyte : hibyte TODO: are they?
+        // Get two ascii chars from queue and convert to 8 bit data.
         c = pop();
         uint8_t lo = charToHexDigit(c);
         c = pop();
         uint8_t hi = charToHexDigit(c);
         uint8_t data = hi*16+lo;
         
-        // Put the address lines out. D0-7 is A0-7, C0-2 is A8-10
-        PORTD = addr & 0x00ff;
-        PORTCbits.RC0 = (addr >> 8)  & 0x01;
-        PORTCbits.RC1 = (addr >> 9)  & 0x01;
-        PORTCbits.RC2 = (addr >> 10) & 0x01;
-        __delay_us(1);
-        
-        // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches   
-        PORTBbits.RB0 = 1;
-        NOP();NOP();
-        // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
-        PORTBbits.RB0 = 0;
-        __delay_us(1);
+        // Latch the 16 bit address.
+        setup_address(addr);
         
         // Write the byte to port D
-        PORTD = data;
-        
-        __delay_us(10);
-        
-        // Set CE1 hi 
-        PORTBbits.RB4 = 1;
-        
-        // Activate PGM pulse for 50mS
-        __delay_us(1);
-        PORTBbits.RB3 = 1;
-        
-        __delay_ms(50);
-        
-        // Deactivate PGM pulse
-        PORTBbits.RB3 = 0;
-        __delay_us(1);
-        
-        // Set CE1 lo
-        PORTBbits.RB4 = 0;
-        __delay_us(1);
+        write_port(data);
      
-        // We should now verify the byte is written,
-        // and if necessary try writing again until ok.
-        
+        /* if verify */
+            // Read from port D
+            uint8_t read = read_port();
+            
+            if (read != data) {
+                // Set CE2 lo to disable writing.
+                PORTBbits.RB1 = 0;
+                sprintf(ads, "write fail, write=%02x, read=%02x\n", data, read);
+                uart_puts(ads);
+                return;
+            }
+        /* verify */
     }
     
     // Set CE2 lo to disable writing.

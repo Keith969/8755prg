@@ -8,5 +8,8 @@ release/*
 8755prg.X/*
 8755prg.app.dSYM
 debug/*
+build/*
+
 .DS_Store
 8755prg.pro.user
+8755prg.pro.user.3fd3a2d

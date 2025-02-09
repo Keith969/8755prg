@@ -7,6 +7,8 @@ release/*
 8755prg.app.dSYM
 debug/*
 build/*
+8755prg.X/build/default/production/*
+8755prg.X/dist/default/production/*
 
 .DS_Store
 8755prg.pro.user

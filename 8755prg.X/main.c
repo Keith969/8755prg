@@ -495,8 +495,8 @@ void do_write()
 // main
 void main(void) {
 
-    // Initialise uart
-    uart_init(115200);
+    // Initialise uart. A value of 0 means use auto baud rate detection.
+    uart_init(0);
     
     // Initialise the IO ports
     ports_init();

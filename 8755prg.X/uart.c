@@ -35,34 +35,37 @@ void uart_init(const uint32_t baud_rate)
     BAUDCONbits.BRG16 = 1;  // 16-bit Baud Rate Generator
     BAUDCONbits.WUE = 0;    // Clear wake up for auto BRG
        
-    RCSTAbits.CREN = 1; // Continuous receive enable
-    RCSTAbits.SPEN = 1; // Serial port enable   
+    RCSTAbits.CREN = 1;     // Continuous receive enable
+    RCSTAbits.SPEN = 1;     // Serial port enable   
     
-    TXSTAbits.SYNC = 0; // async mode
-    TXSTAbits.BRGH = 1; // baud rate hi
-    TXSTAbits.TXEN = 1; // enable transmit
+    TXSTAbits.SYNC = 0;     // async mode
+    TXSTAbits.BRGH = 1;     // baud rate hi
+    TXSTAbits.TXEN = 1;     // enable transmit
     
-    // Get the constant for baud rate calculation
-    uint8_t factor;
-    if (BAUDCONbits.BRG16 && TXSTAbits.BRGH)
-        factor = 4;
-    else if (BAUDCONbits.BRG16 && !TXSTAbits.BRGH)
-        factor = 16;
-    else if (!BAUDCONbits.BRG16 && TXSTAbits.BRGH)
-        factor = 16;
-    else if (!BAUDCONbits.BRG16 && !TXSTAbits.BRGH)
-        factor = 64;
-    if (TXSTAbits.SYNC)
-        factor = 64;
+    // If baud_rate is 0, use auto baud detection
+    if (baud_rate != 0) {
+        // Get the constant for baud rate calculation
+        uint8_t factor;
+        if (BAUDCONbits.BRG16 && TXSTAbits.BRGH)
+            factor = 4;
+        else if (BAUDCONbits.BRG16 && !TXSTAbits.BRGH)
+            factor = 16;
+        else if (!BAUDCONbits.BRG16 && TXSTAbits.BRGH)
+            factor = 16;
+        else if (!BAUDCONbits.BRG16 && !TXSTAbits.BRGH)
+            factor = 64;
+        if (TXSTAbits.SYNC)
+            factor = 64;
+
+        // Set baud rate
+        uint32_t n = (int32_t) _XTAL_FREQ / (factor * baud_rate) - 1u ;
+        SPBRGH = (n & 0xFF00) >> 8;
+        SPBRG  =  n & 0x00FF;
+    }
     
-    // Set baud rate
-    uint32_t n = (int32_t) _XTAL_FREQ / (factor * baud_rate) - 1u ;
-    SPBRGH = (n & 0xFF00) >> 8;
-    SPBRG  =  n & 0x00FF;
-    
-    RCONbits.IPEN = 1;  // enable priority interrupts
-    INTCONbits.PEIE = 1;// enable all unmasked interrupts
-    IPR1bits.RCIP = 1;  // receive interrupts high priority
+    RCONbits.IPEN = 1;   // enable priority interrupts
+    INTCONbits.PEIE = 1; // enable all unmasked interrupts
+    IPR1bits.RCIP = 1;   // receive interrupts high priority
     
     // Enable UART receive interrupt
     PIE1bits.RCIE=1;  
@@ -72,15 +75,20 @@ void uart_init(const uint32_t baud_rate)
     
     // enable global interrupts
     INTCONbits.GIEH = 1;
+    
+    // Setup uart baud rate
+    if (baud_rate == 0) {
+        uart_set_baudrate();
+    }
 }
 
 // ****************************************************************************
-// Function         [ uart_start_msg ]
-// Description      [ Start to send a msg, set ABDEN ]
+// Function         [ uart_set_baudrate ]
+// Description      [ Set ABDEN and a 'U' (0x55) char ]
 // ****************************************************************************
-void uart_start_msg()
+void uart_set_baudrate()
 {
-    // Wait until TXREG ready
+    // Wait until TXREG ready before setting ABDEN.
     while (PIR1bits.TXIF == 0) {
         NOP();
     }
@@ -94,6 +102,17 @@ void uart_start_msg()
     // Wait for done
     while(TXSTAbits.TRMT == 0) {
         NOP();
+    }
+    
+    // If a rollover of the BRG occurs (an overflow from FFFFh to 0000h), 
+    // the event is trapped by the ABDOVF status bit (BAUDCON<7>)
+    while (BAUDCONbits.ABDOVF) {
+        // Set red and orange LED's
+        TRISEbits.RE2 = 1;
+        TRISEbits.RE1 = 1;
+        __delay_ms(500);
+        TRISEbits.RE2 = 0;
+        TRISEbits.RE1 = 0;
     }
 }
 

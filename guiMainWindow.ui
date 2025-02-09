@@ -194,21 +194,28 @@
         <item>
          <widget class="QPushButton" name="checkButton">
           <property name="text">
-           <string>Check Device</string>
+           <string>Check</string>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QPushButton" name="readButton">
           <property name="text">
-           <string>Read Device</string>
+           <string>Read</string>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QPushButton" name="writeButton">
           <property name="text">
-           <string>Write Device</string>
+           <string>Write</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="verifyButton">
+          <property name="text">
+           <string>Verify</string>
           </property>
          </widget>
         </item>

@@ -33,6 +33,7 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     QObject::connect(ui.readButton,          SIGNAL(pressed()),                  this, SLOT(read()));
     QObject::connect(ui.checkButton,         SIGNAL(pressed()),                  this, SLOT(check()));
     QObject::connect(ui.writeButton,         SIGNAL(pressed()),                  this, SLOT(write()));
+    QObject::connect(ui.verifyButton,        SIGNAL(pressed()),                  this, SLOT(verify()));
     QObject::connect(ui.loadHexFile,         SIGNAL(clicked()),                  this, SLOT(openHexFile()));
     QObject::connect(ui.saveHexFile,         SIGNAL(clicked()),                  this, SLOT(saveHexFile()));
 
@@ -73,6 +74,7 @@ guiMainWindow::guiMainWindow(QWidget *parent)
 
     m_HexFile = new hexFile;
     m_HexFile->setMainWindow(this);
+    m_mode = op_read;
 }
 
 // *****************************************************************************
@@ -207,6 +209,7 @@ guiMainWindow::read()
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
     int flowControl = getFlowControl();
+    m_mode = op_read;
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
@@ -230,6 +233,7 @@ guiMainWindow::check()
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
     int flowControl = getFlowControl();
+    m_mode = op_check;
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
@@ -253,6 +257,7 @@ guiMainWindow::write()
         int timeout = ui.timeOut->value() * 1000;
         int baudRate = ui.baudRate->currentText().toInt();
         int flowControl = getFlowControl();
+        m_mode = op_write;
 
         statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                      .arg(portName));
@@ -297,6 +302,7 @@ guiMainWindow::verify()
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
     int flowControl = getFlowControl();
+    m_mode = op_verify;
 
     statusBar()->showMessage(QString("Status: Running, connected to port %1.")
                                  .arg(portName));
@@ -321,15 +327,39 @@ guiMainWindow::quit()
 
 // *****************************************************************************
 // Function     [ senderShowResponse ]
-// Description  [ ]
+// Description  [ Show the thread response string in the text area. ]
 // *****************************************************************************
 void
 guiMainWindow::senderShowResponse(const QString &s)
 {
-    clearText();
-    appendText(s);
-    statusBar()->showMessage("Ready");
-    setLedColour(Qt::green);
+    // If we are doing a read, clear the textEdit then display the response.
+    if (m_mode == op_read || m_mode == op_write || m_mode == op_check) {
+        clearText();
+        appendText(s);
+        statusBar()->showMessage("Ready");
+        setLedColour(Qt::green);
+    }
+    // If a verify, compare with m_HexFile
+    else if (m_mode == op_verify) {
+
+        // Compare each char of s to the hexfile
+        std::vector<hexDataChunk> hexdata = m_HexFile->hexData();
+        int32_t j=0;
+        bool ok = true;
+        for (auto iter = hexdata.begin(); iter != hexdata.end(); ++iter, ++j) {
+            hexDataChunk chunk = *iter;
+            std::vector<uint8_t> data = chunk.data();
+            for (int32_t i=0; i < data.size(); ++i) {
+                // hex character
+                uint8_t hex_chr = data.at(i);
+                uint16_t dev_chr = s.toInt(&ok, 16);
+                // compare the data?
+
+                // Ideally we'd highlight in the ui.textEdit the char(s)
+                // that do not match
+            }
+        }
+    }
 }
 
 // *****************************************************************************

@@ -18,6 +18,13 @@
 #define CMD_WRTE "$2"
 #define CMD_CHEK "$3"
 
+typedef enum {
+    op_read,
+    op_write,
+    op_verify,
+    op_check
+} mode;
+
 // *****************************************************************************
 // Class        [ guiMainWindow ]
 // Description  [ ]
@@ -66,6 +73,9 @@ private:
     QStatusBar             m_statusBar;
     QLabel                 m_statusMsg;
     QLedWidget           * m_ledWidget;
+
+    // Operation mode
+    mode                   m_mode;
 };
 
 #endif /* GUIMAINWINDOW_H */

@@ -3,9 +3,7 @@ x64/*
 .qmake.stash
 8755prg.app/*
 GeneratedFiles/*
-Makefile
 release/*
-8755prg.X/*
 8755prg.app.dSYM
 debug/*
 build/*

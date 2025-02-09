@@ -26,19 +26,6 @@
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout">
            <item>
-            <spacer name="horizontalSpacer">
-             <property name="orientation">
-              <enum>Qt::Orientation::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
             <widget class="QLabel" name="label">
              <property name="text">
               <string>Serial Port</string>
@@ -76,6 +63,26 @@
             <widget class="QComboBox" name="baudRate">
              <property name="toolTip">
               <string>Sets the serial port baud rate; 115200 recommended.</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="initButton">
+             <property name="text">
+              <string>Init</string>
              </property>
             </widget>
            </item>
@@ -253,7 +260,7 @@
      <x>0</x>
      <y>0</y>
      <width>716</width>
-     <height>43</height>
+     <height>37</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

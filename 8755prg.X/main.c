@@ -27,6 +27,7 @@
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
+#define CMD_INIT '9'               // init the baud rate
 
 // Received chars are put into a queue.
 // See e.g. Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
@@ -57,7 +58,7 @@ void setCTS(bool b)
 // ****************************************************************************
 // reset the queue
 //
-void makenull()
+void clear()
 {
     memset(queue, 0x00, QUEUESIZE);
     head = 0;
@@ -300,6 +301,24 @@ uint8_t  read_port()
 }
 
 // ****************************************************************************
+// Init uart baud rate and get the value
+//
+void do_init()
+{
+    char c = '0';
+    int16_t rate;
+    char s[16];
+    
+    // Wait until a U received
+    while (c != 'U') {
+        rate = uart_init_brg(&c);
+    }
+    
+    sprintf(s, "baudrate=%d\n", rate);
+    uart_puts(s);
+}
+
+// ****************************************************************************
 // check eprom is wiped clean
 // Timing critical code. At 20MHz xtal clock, each instruction = 200nS
 //
@@ -530,9 +549,12 @@ void main(void) {
             else if (cmd == CMD_CHEK) {
                 do_blank();
             }
+            else if (cmd == CMD_INIT) {
+                do_init();
+            }
 
             // Clear the cmd
-            makenull();
+            clear();
         } 
     } 
 }

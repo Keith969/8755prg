@@ -30,6 +30,7 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     QObject::connect(ui.actionOpen_HEX_file, SIGNAL(triggered()),                this, SLOT(openHexFile()));
     QObject::connect(ui.actionSave_HEX_file, SIGNAL(triggered()),                this, SLOT(saveHexFile()));
     QObject::connect(ui.actionQuit,          SIGNAL(triggered()),                this, SLOT(quit()));
+    QObject::connect(ui.initButton,          SIGNAL(pressed()),                  this, SLOT(init()));
     QObject::connect(ui.readButton,          SIGNAL(pressed()),                  this, SLOT(read()));
     QObject::connect(ui.checkButton,         SIGNAL(pressed()),                  this, SLOT(check()));
     QObject::connect(ui.writeButton,         SIGNAL(pressed()),                  this, SLOT(write()));
@@ -75,6 +76,7 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     m_HexFile = new hexFile;
     m_HexFile->setMainWindow(this);
     m_mode = op_read;
+    m_initOK = false;
 }
 
 // *****************************************************************************
@@ -199,12 +201,40 @@ guiMainWindow::getFlowControl()
 }
 
 // *****************************************************************************
+// Function     [ init ]
+// Description  [ Send a init command to the PIC ]
+// *****************************************************************************
+void
+guiMainWindow::init()
+{
+    QString portName = ui.serialPort->currentText();
+    int timeout = ui.timeOut->value() * 1000;
+    int baudRate = ui.baudRate->currentText().toInt();
+    int flowControl = getFlowControl();
+    m_mode = op_read;
+
+    statusBar()->showMessage(QString("Status: Initialising, connected to port %1.")
+                                 .arg(portName));
+
+    setLedColour(Qt::red);
+
+    // Send the cmd.
+    m_senderThread.transaction(portName, CMD_INIT, timeout, baudRate, flowControl);
+
+    statusBar()->showMessage("Initialising...");
+}
+
+// *****************************************************************************
 // Function     [ read ]
 // Description  [ Send a read command to the PIC ]
 // *****************************************************************************
 void
 guiMainWindow::read()
 {
+    if (! m_initOK) {
+        QMessageBox::critical(this, "Baud rate", "Init baud rate first!", QMessageBox::Ok);
+        return;
+    }
     QString portName = ui.serialPort->currentText();
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
@@ -224,11 +254,15 @@ guiMainWindow::read()
 
 // *****************************************************************************
 // Function     [ check ]
-// Description  [ ]
+// Description  [ Check if the DUT is programmed ]
 // *****************************************************************************
 void
 guiMainWindow::check()
 {
+    if (! m_initOK) {
+        QMessageBox::critical(this, "Baud rate", "Init baud rate first!", QMessageBox::Ok);
+        return;
+    }
     QString portName = ui.serialPort->currentText();
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
@@ -252,6 +286,10 @@ guiMainWindow::check()
 void
 guiMainWindow::write()
 {
+    if (! m_initOK) {
+        QMessageBox::critical(this, "Baud rate", "Init baud rate first!", QMessageBox::Ok);
+        return;
+    }
     if (size() > 0) {
         QString portName = ui.serialPort->currentText();
         int timeout = ui.timeOut->value() * 1000;
@@ -298,6 +336,10 @@ guiMainWindow::write()
 void
 guiMainWindow::verify()
 {
+    if (! m_initOK) {
+        QMessageBox::critical(this, "Baud rate", "Init baud rate first!", QMessageBox::Ok);
+        return;
+    }
     QString portName = ui.serialPort->currentText();
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
@@ -359,6 +401,15 @@ guiMainWindow::senderShowResponse(const QString &s)
                 // that do not match
             }
         }
+    }
+    else if (m_mode == op_init) {
+        // The response string should be the baud rate info
+        clearText();
+        appendText(s);
+        statusBar()->showMessage("Ready");
+        setLedColour(Qt::green);
+
+        m_initOK = true;
     }
 }
 

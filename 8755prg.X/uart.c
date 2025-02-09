@@ -75,65 +75,46 @@ void uart_init(const uint32_t baud_rate)
     
     // enable global interrupts
     INTCONbits.GIEH = 1;
-    
-    // Setup uart baud rate
-    if (baud_rate == 0) {
-        uart_set_baudrate();
-    }
 }
 
 // ****************************************************************************
-// Function         [ uart_set_baudrate ]
-// Description      [ Set ABDEN and a 'U' (0x55) char ]
+// Function         [ uart_init_brg ]
+// Description      [ ]
 // ****************************************************************************
-void uart_set_baudrate()
+int16_t uart_init_brg(char *c)
 {
-    // Wait until TXREG ready before setting ABDEN.
-    while (PIR1bits.TXIF == 0) {
-        NOP();
-    }
-    
-    // Set ABDEN
+    // Setup ABDEN and wait for a 'U' received
+    BAUDCONbits.WUE = 0;
     BAUDCONbits.ABDEN = 1;
     
-    // Put the char to send in transmit buffer
-    TXREG = 'U';
-
-    // Wait for done
-    while(TXSTAbits.TRMT == 0) {
-        NOP();
+    // NULL if we had an error
+    bool ok = false;
+    
+    while (! ok) {
+        // Check for errors
+        if (RCSTAbits.FERR) {
+            uint8_t er = RCREG;    // Framing error
+        }
+        else if (RCSTAbits.OERR) {
+            RCSTAbits.CREN = 0;    // Overrun error, clear it
+            RCSTAbits.CREN = 1;    // by toggling CREN
+        }
+        else {
+            if (PIR1bits.RCIF) {
+                *c = RCREG & 0x7f; // strip hi bit
+                ok = true;
+            }
+        } 
+        if ( BAUDCONbits.ABDOVF ) {
+            BAUDCONbits.ABDOVF = 0;
+            ok = false;
+        }
     }
     
-    // If a rollover of the BRG occurs (an overflow from FFFFh to 0000h), 
-    // the event is trapped by the ABDOVF status bit (BAUDCON<7>)
-    while (BAUDCONbits.ABDOVF) {
-        // Set red and orange LED's
-        TRISEbits.RE2 = 1;
-        TRISEbits.RE1 = 1;
-        __delay_ms(500);
-        TRISEbits.RE2 = 0;
-        TRISEbits.RE1 = 0;
-    }
-}
-
-// ****************************************************************************
-// Function         [ uart_putc ]
-// Description      [ Send a character ]
-// ****************************************************************************
-void uart_putc(char c)
-{
-    // Wait until TXREG ready
-    while (PIR1bits.TXIF == 0) {
-        NOP();
-    }
-    
-    // Put the char to send in transmit buffer
-    TXREG = c;
-
-    // Wait for done
-    while(TXSTAbits.TRMT == 0) {
-        NOP();
-    }
+    // Return the baudrate from SPBRG
+    int16_t rate = SPBRGH << 8;
+    rate        &= SPBRG;
+    return rate;
 }
 
 // ****************************************************************************
@@ -159,8 +140,27 @@ bool uart_getc(char *c)
             ok = true;
         }
     } 
-    
     return ok;
+}
+
+// ****************************************************************************
+// Function         [ uart_putc ]
+// Description      [ Send a character ]
+// ****************************************************************************
+void uart_putc(char c)
+{
+    // Wait until TXREG ready
+    while (PIR1bits.TXIF == 0) {
+        NOP();
+    }
+    
+    // Put the char to send in transmit buffer
+    TXREG = c;
+
+    // Wait for done
+    while(TXSTAbits.TRMT == 0) {
+        NOP();
+    }
 }
 
 // ****************************************************************************
@@ -186,7 +186,7 @@ void uart_puts(char *s)
 
 // ****************************************************************************
 // Function         [ uart_printf ]
-// Description      [ Send a null terminated string ]
+// Description      [ Send a formatted string ]
 // ****************************************************************************
 void uart_printf(const char *fmt, ...)
 {
@@ -194,8 +194,8 @@ void uart_printf(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    // TODO. xc8 doesn't support this, sigh
-    //vsprintf( (const char *) buf, fmt, ap);
+    // Does xc8 support this yet???
+    vsprintf( (const char *) buf, fmt, ap);
     uart_puts(buf);
     va_end(ap);
 }

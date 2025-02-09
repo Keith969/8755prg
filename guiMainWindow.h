@@ -17,12 +17,14 @@
 #define CMD_READ "$1"
 #define CMD_WRTE "$2"
 #define CMD_CHEK "$3"
+#define CMD_INIT "$9"
 
 typedef enum {
     op_read,
     op_write,
     op_verify,
-    op_check
+    op_check,
+    op_init
 } mode;
 
 // *****************************************************************************
@@ -38,13 +40,14 @@ public:
     ~guiMainWindow();
 
 public slots:
-    void openHexFile();
-    void saveHexFile();
-    void quit();
-    void read();
-    void check();
-    void write();
-    void verify();
+    void                   openHexFile();
+    void                   saveHexFile();
+    void                   init();
+    void                   quit();
+    void                   read();
+    void                   check();
+    void                   write();
+    void                   verify();
 
     void                   senderShowResponse(const QString &);
     void                   senderProcessError(const QString &);
@@ -76,6 +79,7 @@ private:
 
     // Operation mode
     mode                   m_mode;
+    bool                   m_initOK;
 };
 
 #endif /* GUIMAINWINDOW_H */

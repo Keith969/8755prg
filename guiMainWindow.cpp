@@ -33,6 +33,8 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     QObject::connect(ui.readButton,          SIGNAL(pressed()),                  this, SLOT(read()));
     QObject::connect(ui.checkButton,         SIGNAL(pressed()),                  this, SLOT(check()));
     QObject::connect(ui.writeButton,         SIGNAL(pressed()),                  this, SLOT(write()));
+    QObject::connect(ui.loadHexFile,         SIGNAL(clicked()),                  this, SLOT(openHexFile()));
+    QObject::connect(ui.saveHexFile,         SIGNAL(clicked()),                  this, SLOT(saveHexFile()));
 
     // Sender read thread
     QObject::connect(&m_senderThread,        SIGNAL(response(const QString &)),  this, SLOT(senderShowResponse(const QString &)));
@@ -49,8 +51,13 @@ guiMainWindow::guiMainWindow(QWidget *parent)
         }
     }
 
-    // We only allow this baud rate as its hardcoded into PIC firmware.
+    // Baud rate settings
     ui.baudRate->addItem("115200");
+    ui.baudRate->addItem("57600");
+    ui.baudRate->addItem("38400");
+    ui.baudRate->addItem("19200");
+    ui.baudRate->addItem("9600");
+    ui.baudRate->addItem("4800");
 
     this->setStatusBar(&m_statusBar);
 
@@ -63,7 +70,7 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     statusBar()->insertPermanentWidget(1, m_ledWidget);
 
     statusBar()->showMessage("Ready");
-   
+
     m_HexFile = new hexFile;
     m_HexFile->setMainWindow(this);
 }
@@ -277,6 +284,29 @@ guiMainWindow::write()
         clearText();
         appendText("No HEX data - please open a HEX file!\n");
     }
+}
+
+// *****************************************************************************
+// Function     [ Verify ]
+// Description  [ Verify device ]
+// *****************************************************************************
+void
+guiMainWindow::verify()
+{
+    QString portName = ui.serialPort->currentText();
+    int timeout = ui.timeOut->value() * 1000;
+    int baudRate = ui.baudRate->currentText().toInt();
+    int flowControl = getFlowControl();
+
+    statusBar()->showMessage(QString("Status: Running, connected to port %1.")
+                                 .arg(portName));
+
+    setLedColour(Qt::red);
+
+    // Send the cmd.
+    m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
+
+    statusBar()->showMessage("Verifying...");
 }
 
 // *****************************************************************************

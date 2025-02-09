@@ -37,6 +37,7 @@ public slots:
     void read();
     void check();
     void write();
+    void verify();
 
     void                   senderShowResponse(const QString &);
     void                   senderProcessError(const QString &);

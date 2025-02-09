@@ -33,6 +33,7 @@ void uart_init(const uint32_t baud_rate)
     TRISCbits.TRISC7=1;     // RX
     
     BAUDCONbits.BRG16 = 1;  // 16-bit Baud Rate Generator
+    BAUDCONbits.WUE = 0;    // Clear wake up for auto BRG
        
     RCSTAbits.CREN = 1; // Continuous receive enable
     RCSTAbits.SPEN = 1; // Serial port enable   
@@ -71,6 +72,29 @@ void uart_init(const uint32_t baud_rate)
     
     // enable global interrupts
     INTCONbits.GIEH = 1;
+}
+
+// ****************************************************************************
+// Function         [ uart_start_msg ]
+// Description      [ Start to send a msg, set ABDEN ]
+// ****************************************************************************
+void uart_start_msg()
+{
+    // Wait until TXREG ready
+    while (PIR1bits.TXIF == 0) {
+        NOP();
+    }
+    
+    // Set ABDEN
+    BAUDCONbits.ABDEN = 1;
+    
+    // Put the char to send in transmit buffer
+    TXREG = 'U';
+
+    // Wait for done
+    while(TXSTAbits.TRMT == 0) {
+        NOP();
+    }
 }
 
 // ****************************************************************************

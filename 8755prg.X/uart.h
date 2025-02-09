@@ -25,6 +25,9 @@ extern "C" {
 // Initialise the UART
 void uart_init(const uint32_t baud_rate);
 
+// Start a msg, setting auto baud detection
+void uart_start_msg();
+
 // Send a char from the UART
 void uart_putc(char c);
 

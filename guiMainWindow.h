@@ -17,7 +17,7 @@
 #define CMD_READ "$1"
 #define CMD_WRTE "$2"
 #define CMD_CHEK "$3"
-#define CMD_INIT "$9"
+#define CMD_INIT "U"
 
 typedef enum {
     op_read,

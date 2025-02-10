@@ -27,7 +27,7 @@
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
-#define CMD_INIT '9'               // init the baud rate
+#define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
 // See e.g. Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
@@ -520,6 +520,8 @@ void main(void) {
     // Initialise the IO ports
     ports_init();
     
+    do_init();
+    
     // Loop while waiting for commands
     // We flash a green LED so we know we are listening...
     while (true) {
@@ -548,9 +550,6 @@ void main(void) {
             }
             else if (cmd == CMD_CHEK) {
                 do_blank();
-            }
-            else if (cmd == CMD_INIT) {
-                do_init();
             }
 
             // Clear the cmd

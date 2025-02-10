@@ -86,6 +86,7 @@ int16_t uart_init_brg(char *c)
     // Setup ABDEN and wait for a 'U' received
     BAUDCONbits.WUE = 0;
     BAUDCONbits.ABDEN = 1;
+    //TRISEbits.RE1 = 1; // orange led on
     
     // NULL if we had an error
     bool ok = false;
@@ -114,6 +115,8 @@ int16_t uart_init_brg(char *c)
     // Return the baudrate from SPBRG
     int16_t rate = SPBRGH << 8;
     rate        &= SPBRG;
+    
+    //TRISEbits.RE1 = 0; // orange led off
     return rate;
 }
 

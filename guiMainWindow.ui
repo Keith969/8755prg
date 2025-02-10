@@ -62,7 +62,7 @@
            <item>
             <widget class="QComboBox" name="baudRate">
              <property name="toolTip">
-              <string>Sets the serial port baud rate; 115200 recommended.</string>
+              <string>The desired baud rate.</string>
              </property>
             </widget>
            </item>
@@ -81,6 +81,9 @@
            </item>
            <item>
             <widget class="QPushButton" name="initButton">
+             <property name="toolTip">
+              <string>Initialise the serial link at the given baud rate.</string>
+             </property>
              <property name="text">
               <string>Init</string>
              </property>
@@ -173,6 +176,9 @@
        <layout class="QHBoxLayout" name="horizontalLayout_4">
         <item>
          <widget class="QPushButton" name="loadHexFile">
+          <property name="toolTip">
+           <string>Load a hex file for write/verify.</string>
+          </property>
           <property name="text">
            <string>Load hex file</string>
           </property>
@@ -180,6 +186,9 @@
         </item>
         <item>
          <widget class="QPushButton" name="saveHexFile">
+          <property name="toolTip">
+           <string>Save a hex file.</string>
+          </property>
           <property name="text">
            <string>Save hex file</string>
           </property>
@@ -200,6 +209,9 @@
         </item>
         <item>
          <widget class="QPushButton" name="checkButton">
+          <property name="toolTip">
+           <string>Check if the DUT is erased.</string>
+          </property>
           <property name="text">
            <string>Check</string>
           </property>
@@ -207,6 +219,9 @@
         </item>
         <item>
          <widget class="QPushButton" name="readButton">
+          <property name="toolTip">
+           <string>Read data from the DUT.</string>
+          </property>
           <property name="text">
            <string>Read</string>
           </property>
@@ -214,6 +229,9 @@
         </item>
         <item>
          <widget class="QPushButton" name="writeButton">
+          <property name="toolTip">
+           <string>Write data to the DUT.</string>
+          </property>
           <property name="text">
            <string>Write</string>
           </property>
@@ -221,6 +239,9 @@
         </item>
         <item>
          <widget class="QPushButton" name="verifyButton">
+          <property name="toolTip">
+           <string>Verify the DUT data against loaded hex file.</string>
+          </property>
           <property name="text">
            <string>Verify</string>
           </property>
@@ -239,7 +260,7 @@
            <x>0</x>
            <y>0</y>
            <width>688</width>
-           <height>252</height>
+           <height>265</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -260,7 +281,7 @@
      <x>0</x>
      <y>0</y>
      <width>716</width>
-     <height>37</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

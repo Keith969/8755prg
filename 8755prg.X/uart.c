@@ -89,17 +89,20 @@ void uart_init(const uint32_t baud_rate)
 int16_t uart_init_brg()
 {
     int16_t rate=0;
-    // disable interrupts
+    // Disable interrupts
     PIE1bits.RCIE=0;
     
-    // Wait till char received
-    while (! PIR1bits.RCIF) {
+    // Set ABDEN bit
+    BAUDCONbits.ABDEN = 1;
         
-        // Set ABDEN bit
-        BAUDCONbits.ABDEN = 1;
+    // Wait till char received
+    while (true) {
         
         // reading RCREG clears RCIF
-        char c = RCREG & 0x7f; 
+        if (PIR1bits.RCIF) {
+            char c = RCREG & 0x7f; 
+            break;
+        }
         
         // Flash orange LED while waiting...
         PORTEbits.RE1 = 1;
@@ -113,10 +116,10 @@ int16_t uart_init_brg()
     }
 
     // Return the baudrate from SPBRG
-    rate  = SPBRG;
-    rate &= (SPBRGH << 8) & 0xf0;
+    rate = (SPBRGH << 8) | SPBRG;
     
-    PORTEbits.RE1 = 0; // orange led off
+    // Orange LED off
+    PORTEbits.RE1 = 0;
     
     // enable interrupts
     PIE1bits.RCIE=1;

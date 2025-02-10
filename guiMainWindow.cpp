@@ -75,8 +75,14 @@ guiMainWindow::guiMainWindow(QWidget *parent)
 
     m_HexFile = new hexFile;
     m_HexFile->setMainWindow(this);
-    m_mode = op_read;
+    m_mode = op_none;
     m_initOK = false;
+
+    // Until we have init the baud rate, disable the buttons
+    ui.checkButton->setEnabled(false);
+    ui.readButton->setEnabled(false);
+    ui.writeButton->setEnabled(false);
+    ui.verifyButton->setEnabled(false);
 }
 
 // *****************************************************************************
@@ -211,7 +217,7 @@ guiMainWindow::init()
     int timeout = ui.timeOut->value() * 1000;
     int baudRate = ui.baudRate->currentText().toInt();
     int flowControl = getFlowControl();
-    m_mode = op_read;
+    m_mode = op_init;
 
     statusBar()->showMessage(QString("Status: Initialising, connected to port %1.")
                                  .arg(portName));
@@ -380,8 +386,6 @@ guiMainWindow::senderShowResponse(const QString &s)
         appendText(s);
         statusBar()->showMessage("Ready");
         setLedColour(Qt::green);
-        // this should not be done here...
-        m_initOK = true;
     }
     // If a verify, compare with m_HexFile
     else if (m_mode == op_verify) {
@@ -407,11 +411,19 @@ guiMainWindow::senderShowResponse(const QString &s)
     else if (m_mode == op_init) {
         // The response string should be the baud rate info
         clearText();
-        appendText(s);
+        bool ok=true;
+        int32_t val=20.0e6 / (4 * (s.toInt(&ok) + 1));
+        QString ss = QString("Initialised to %1 baud.").arg(val);
+        appendText(ss);
         statusBar()->showMessage("Ready");
         setLedColour(Qt::green);
-        // This should be done here...
         m_initOK = true;
+
+        // Enable the buttons
+        ui.checkButton->setEnabled(true);
+        ui.readButton->setEnabled(true);
+        ui.writeButton->setEnabled(true);
+        ui.verifyButton->setEnabled(true);
     }
 }
 

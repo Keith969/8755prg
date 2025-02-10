@@ -305,11 +305,11 @@ uint8_t  read_port()
 void do_init()
 {
     int16_t rate;
-    char s[16];
+    char s[8];
         
     rate = uart_init_brg();
     
-    sprintf(s, "baudrate=%d\n", rate);
+    sprintf(s, "%d\n", rate);
     uart_puts(s);
 }
 

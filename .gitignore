@@ -10,6 +10,8 @@ build/*
 8755prg.X/build/default/production/*
 8755prg.X/dist/default/production/*
 8755prg.X/nbproject/*
+8755prg.X/build/*
+8755prg.X/dist/*
 Makefile
 
 .DS_Store

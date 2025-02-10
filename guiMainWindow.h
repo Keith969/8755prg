@@ -20,6 +20,7 @@
 #define CMD_INIT "U"
 
 typedef enum {
+    op_none,
     op_read,
     op_write,
     op_verify,

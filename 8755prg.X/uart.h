@@ -21,7 +21,7 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
+    
 // Initialise the UART
 void uart_init(const uint32_t baud_rate);
 

@@ -16,6 +16,11 @@
 #include <stdarg.h>
 #include <string.h>
 
+//
+// static variables
+//
+static bool    uart_ready = false;
+
 // ****************************************************************************
 // Function         [ uart_init ]
 // Description      [ ]
@@ -81,38 +86,41 @@ void uart_init(const uint32_t baud_rate)
 // Function         [ uart_init_brg ]
 // Description      [ ]
 // ****************************************************************************
-int16_t uart_init_brg(char *c)
+int16_t uart_init_brg()
 {
-    // Setup ABDEN and wait for a 'U' received from PC
-    BAUDCONbits.ABDEN = 1;
+    int16_t rate=0;
+    // disable interrupts
+    PIE1bits.RCIE=0;
     
-    // false if we had an error
-    bool ok = false;
-    
-    // Check for errors
-    if (RCSTAbits.FERR) {
-        uint8_t er = RCREG;    // Framing error
-    }
-    else if (RCSTAbits.OERR) {
-        RCSTAbits.CREN = 0;    // Overrun error, clear it
-        RCSTAbits.CREN = 1;    // by toggling CREN
-    }
-    else {
-        if (PIR1bits.RCIF) {
-            *c = RCREG & 0x7f; // strip hi bit
-            ok = true;
+    // Wait till char received
+    while (! PIR1bits.RCIF) {
+        
+        // Set ABDEN bit
+        BAUDCONbits.ABDEN = 1;
+        
+        // reading RCREG clears RCIF
+        char c = RCREG & 0x7f; 
+        
+        // Flash orange LED while waiting...
+        PORTEbits.RE1 = 1;
+        __delay_ms(250);
+        PORTEbits.RE1 = 0;
+        __delay_ms(250);
+        
+        if ( BAUDCONbits.ABDOVF ) {
+            BAUDCONbits.ABDOVF = 0;
         }
-    } 
-    if ( BAUDCONbits.ABDOVF ) {
-        BAUDCONbits.ABDOVF = 0;
-        ok = false;
     }
 
-    
     // Return the baudrate from SPBRG
-    int16_t rate = SPBRGH << 8;
-    rate        &= SPBRG;
+    rate  = SPBRG;
+    rate &= (SPBRGH << 8) & 0xf0;
     
+    PORTEbits.RE1 = 0; // orange led off
+    
+    // enable interrupts
+    PIE1bits.RCIE=1;
+      
     return rate;
 }
 

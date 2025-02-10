@@ -380,6 +380,8 @@ guiMainWindow::senderShowResponse(const QString &s)
         appendText(s);
         statusBar()->showMessage("Ready");
         setLedColour(Qt::green);
+        // this should not be done here...
+        m_initOK = true;
     }
     // If a verify, compare with m_HexFile
     else if (m_mode == op_verify) {
@@ -408,7 +410,7 @@ guiMainWindow::senderShowResponse(const QString &s)
         appendText(s);
         statusBar()->showMessage("Ready");
         setLedColour(Qt::green);
-
+        // This should be done here...
         m_initOK = true;
     }
 }

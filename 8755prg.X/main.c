@@ -41,7 +41,6 @@
 static char    queue[QUEUESIZE];   // The receiver queue
 static int16_t head = 0;           // head of the queue
 static int16_t tail = ENDQUEUE;    // tail of the  queue
-
 static bool    cmd_active = false; // Are we in a cmd?
 static int16_t bytes_pushed = 0;   // pushed into queue
 static int16_t bytes_popped = 0;   // popped from queue
@@ -224,29 +223,29 @@ void ports_init(void)
 //
 void __interrupt(high_priority) high_isr(void)
 {
-    char c = 0;
-    
-    // Disable interrupts
-    INTCONbits.GIEH = 0;
-    PIE1bits.RCIE=0;
-  
-    // Get the character from uart
-    bool ok = uart_getc(&c);
-    if (ok) {
-        // Push the char onto stack
-        push(c);
+        char c = 0;
 
-        // Check if we have a cmd yet. 
-        int16_t n = size();
-        if ( (first() == '$') && n > 1) {
-            // We have a command (2 chars at head of queue))
-            cmd_active = true;
+        // Disable interrupts
+        INTCONbits.GIEH = 0;
+        PIE1bits.RCIE=0;
+
+        // Get the character from uart
+        bool ok = uart_getc(&c);
+        if (ok) {
+            // Push the char onto stack
+            push(c);
+
+            // Check if we have a cmd yet. 
+            int16_t n = size();
+            if ( (first() == '$') && n > 1) {
+                // We have a command (2 chars at head of queue))
+                cmd_active = true;
+            }
         }
-    }
-    
-    // Enable interrupts
-    PIE1bits.RCIE=1;
-    INTCONbits.GIEH = 1;
+
+        // Enable interrupts
+        PIE1bits.RCIE=1;
+        INTCONbits.GIEH = 1;
 }
 
 // ****************************************************************************
@@ -301,23 +300,14 @@ uint8_t  read_port()
 }
 
 // ****************************************************************************
-// Init uart baud rate. This is the next step in main() after setting up
-// ports. It waits for a 'U' char (0x55) from PC.)
+// Init uart baud rate
 //
 void do_init()
 {
-    char c = '0';
     int16_t rate;
     char s[16];
-    
-    
-    // Wait until a U received
-    while (c != 'U') {
-        TRISEbits.RE1 = 1;         // orange led on
-        rate = uart_init_brg(&c);  // check baud rate
-        __delay_ms(100);           // wait
-        TRISEbits.RE1 = 0;         // orange led off
-    }
+        
+    rate = uart_init_brg();
     
     sprintf(s, "baudrate=%d\n", rate);
     uart_puts(s);

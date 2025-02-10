@@ -83,7 +83,7 @@ void uart_init(const uint32_t baud_rate)
 // ****************************************************************************
 int16_t uart_init_brg(char *c)
 {
-    // Setup ABDEN and wait for a 'U' received
+    // Setup ABDEN and wait for a 'U' received from PC
     BAUDCONbits.ABDEN = 1;
     
     // false if we had an error

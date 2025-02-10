@@ -302,7 +302,7 @@ uint8_t  read_port()
 
 // ****************************************************************************
 // Init uart baud rate. This is the next step in main() after setting up
-// ports. It waits for a 'U' char (0x55) and determines the baud rate.)
+// ports. It waits for a 'U' char (0x55) from PC.)
 //
 void do_init()
 {
@@ -525,6 +525,7 @@ void main(void) {
     // Initialise the IO ports
     ports_init();
     
+    // Wait for a 'U' char to init the uart BRG
     do_init();
     
     // Loop while waiting for commands

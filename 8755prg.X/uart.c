@@ -84,39 +84,35 @@ void uart_init(const uint32_t baud_rate)
 int16_t uart_init_brg(char *c)
 {
     // Setup ABDEN and wait for a 'U' received
-    BAUDCONbits.WUE = 0;
     BAUDCONbits.ABDEN = 1;
-    //TRISEbits.RE1 = 1; // orange led on
     
-    // NULL if we had an error
+    // false if we had an error
     bool ok = false;
     
-    while (! ok) {
-        // Check for errors
-        if (RCSTAbits.FERR) {
-            uint8_t er = RCREG;    // Framing error
-        }
-        else if (RCSTAbits.OERR) {
-            RCSTAbits.CREN = 0;    // Overrun error, clear it
-            RCSTAbits.CREN = 1;    // by toggling CREN
-        }
-        else {
-            if (PIR1bits.RCIF) {
-                *c = RCREG & 0x7f; // strip hi bit
-                ok = true;
-            }
-        } 
-        if ( BAUDCONbits.ABDOVF ) {
-            BAUDCONbits.ABDOVF = 0;
-            ok = false;
-        }
+    // Check for errors
+    if (RCSTAbits.FERR) {
+        uint8_t er = RCREG;    // Framing error
     }
+    else if (RCSTAbits.OERR) {
+        RCSTAbits.CREN = 0;    // Overrun error, clear it
+        RCSTAbits.CREN = 1;    // by toggling CREN
+    }
+    else {
+        if (PIR1bits.RCIF) {
+            *c = RCREG & 0x7f; // strip hi bit
+            ok = true;
+        }
+    } 
+    if ( BAUDCONbits.ABDOVF ) {
+        BAUDCONbits.ABDOVF = 0;
+        ok = false;
+    }
+
     
     // Return the baudrate from SPBRG
     int16_t rate = SPBRGH << 8;
     rate        &= SPBRG;
     
-    //TRISEbits.RE1 = 0; // orange led off
     return rate;
 }
 
@@ -193,12 +189,12 @@ void uart_puts(char *s)
 // ****************************************************************************
 void uart_printf(const char *fmt, ...)
 {
-    char buf[64];
-    va_list ap;
+    //char buf[64];
+    //va_list ap;
 
-    va_start(ap, fmt);
+    //va_start(ap, fmt);
     // Does xc8 support this yet???
-    vsprintf( (const char *) buf, fmt, ap);
-    uart_puts(buf);
-    va_end(ap);
+    //vsprintf( (const char *) buf, fmt, ap);
+    //uart_puts(buf);
+    //va_end(ap);
 }

@@ -301,7 +301,8 @@ uint8_t  read_port()
 }
 
 // ****************************************************************************
-// Init uart baud rate and get the value
+// Init uart baud rate. This is the next step in main() after setting up
+// ports. It waits for a 'U' char (0x55) and determines the baud rate.)
 //
 void do_init()
 {
@@ -309,9 +310,13 @@ void do_init()
     int16_t rate;
     char s[16];
     
+    
     // Wait until a U received
     while (c != 'U') {
-        rate = uart_init_brg(&c);
+        TRISEbits.RE1 = 1;         // orange led on
+        rate = uart_init_brg(&c);  // check baud rate
+        __delay_ms(100);           // wait
+        TRISEbits.RE1 = 0;         // orange led off
     }
     
     sprintf(s, "baudrate=%d\n", rate);

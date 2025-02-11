@@ -1,7 +1,7 @@
 // ****************************************************************************
 //
 // File                 : uart.h
-// Hardware Environment : PIC 18F4520
+// Hardware Environment : PIC 16F1789
 //                        5v supply voltage
 //                        internal oscillator
 // Build Environment    : MPLAB IDE
@@ -36,9 +36,6 @@ void uart_puts(char *s);
 
 // receive a char from the UART
 bool  uart_getc(char *c);
-
-// printf like
-void uart_printf(const char *fmt, ...);
 
 #ifdef	__cplusplus
 }

@@ -28,10 +28,10 @@ static bool    uart_ready = false;
 void uart_init(const uint32_t baud_rate)
 {
     // disable global interrupts
-    INTCONbits.GIEH = 0;
+    INTCONbits.GIE = 0;
     
-    PIE1bits.TX1IE = 1;     // disable TX interrupts
-    PIE1bits.RC1IE = 1;     // disable RX interrupts
+    PIE1bits.TXIE = 1;      // disable TX interrupts
+    PIE1bits.RCIE = 1;      // disable RX interrupts
     
     // Set port C UART bits. Both need to be 1
     TRISCbits.TRISC6=1;     // TX
@@ -68,9 +68,9 @@ void uart_init(const uint32_t baud_rate)
         SPBRG  =  n & 0x00FF;
     }
     
-    RCONbits.IPEN = 1;   // enable priority interrupts
+    //RCONbits.IPEN = 1;   // enable priority interrupts
     INTCONbits.PEIE = 1; // enable all unmasked interrupts
-    IPR1bits.RCIP = 1;   // receive interrupts high priority
+    //IPR1bits.RCIP = 1;   // receive interrupts high priority
     
     // Enable UART receive interrupt
     PIE1bits.RCIE=1;  
@@ -79,16 +79,16 @@ void uart_init(const uint32_t baud_rate)
     PIE1bits.TXIE=0;  
     
     // enable global interrupts
-    INTCONbits.GIEH = 1;
+    INTCONbits.GIE = 1;
 }
 
 // ****************************************************************************
 // Function         [ uart_init_brg ]
 // Description      [ ]
 // ****************************************************************************
-int16_t uart_init_brg()
+uint16_t uart_init_brg()
 {
-    int16_t rate=0;
+    uint16_t rate=0;
     // Disable interrupts
     PIE1bits.RCIE=0;
     
@@ -194,18 +194,3 @@ void uart_puts(char *s)
     }
 }
 
-// ****************************************************************************
-// Function         [ uart_printf ]
-// Description      [ Send a formatted string ]
-// ****************************************************************************
-void uart_printf(const char *fmt, ...)
-{
-    //char buf[64];
-    //va_list ap;
-
-    //va_start(ap, fmt);
-    // Does xc8 support this yet???
-    //vsprintf( (const char *) buf, fmt, ap);
-    //uart_puts(buf);
-    //va_end(ap);
-}

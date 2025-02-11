@@ -26,7 +26,7 @@ extern "C" {
 void uart_init(const uint32_t baud_rate);
 
 // set up the baud rate
-int16_t uart_init_brg();
+uint16_t uart_init_brg();
 
 // Send a char from the UART
 void uart_putc(char c);

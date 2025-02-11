@@ -1,7 +1,7 @@
 // ****************************************************************************
 //
 // File                 : main.c
-// Hardware Environment : PIC 18F4520
+// Hardware Environment : PIC 16F1789
 //                        5v supply voltage
 //                        internal oscillator
 // Build Environment    : MPLAB IDE
@@ -11,8 +11,7 @@
 //
 // ****************************************************************************
 
-#include <xc.h>
-#include <pic18f4520.h>
+#include <pic16f1789.h>
 #include "conbits.h"
 #include "stdint.h"
 #include "string.h"
@@ -112,9 +111,9 @@ void push(char c)
 {    
     if ( addone(addone(tail)) == head) {
         // error - queue is full. Set error led.
-        // TODO: return false if queue full.
-        while (true)
-            TRISEbits.RE2 = 1;
+        PORTEbits.RE2 = 1;
+        __delay_ms(5000);
+        return;
     }
     else {
         tail = addone(tail);
@@ -135,16 +134,16 @@ char pop()
 {
     // pop() is called in write() and could be interrupted, which would
     // cause havoc to the queue. So disable interrupts.)
-    INTCONbits.GIEH = 0;
+    INTCONbits.GIE = 0;
     PIE1bits.RCIE=0;
     
     char c = 0;
     
     if (empty()) {
         // error - queue is empty.  Set error led.
-        // TODO: return false if empty.
-        while (true)
-            TRISEbits.RE2 = 1;
+        PORTEbits.RE2 = 1;
+        __delay_ms(5000);
+        return c;
     }
     else {
         c = queue[head];
@@ -153,7 +152,7 @@ char pop()
     }
     
     // Enable interrupts
-    INTCONbits.GIEH = 1;
+    INTCONbits.GIE = 1;
     PIE1bits.RCIE = 1;
     return c;
 }
@@ -185,25 +184,26 @@ void ports_init(void)
 {
     // disable analog else weird things happen
     ADCON0bits.ADON = 0;
-    ADCON1 = 0x0F;
+    ANSELA = 0;           // by default port A is analog
+    ANSELB = 0;           // by default port B is analog
     
     // Use port E for status LEDs
-    TRISEbits.RE0 = 0; // green  LED, while loop
-    TRISEbits.RE1 = 0; // orange LED, interrupt
-    TRISEbits.RE2 = 0; // red    LED, warning
+    TRISEbits.TRISE0 = 0; // green  LED, while loop
+    TRISEbits.TRISE1 = 0; // orange LED, interrupt
+    TRISEbits.TRISE2 = 0; // red    LED, warning
     PORTEbits.RE0 = 0;
     PORTEbits.RE1 = 0;
     PORTEbits.RE2 = 0;
     
     // Port A for uart control. Bits 0,1,4-7 spare.
-    TRISAbits.RA2 = 0; // CTS is an active low output
-    TRISAbits.RA3 = 1; // RTS is an active low input
-    PORTAbits.RA2 = 0; // assert CTS
+    TRISAbits.TRISA2 = 0; // CTS is an active low output
+    TRISAbits.TRISA3 = 1; // RTS is an active low input
+    PORTAbits.RA2 = 0;    // assert CTS
 
     // Port D output for address bits AD0-A7
     TRISD = OUTPUT;
     
-    // Port C bits 0,1,2 = A8-A10
+    // Port C bits 0,1,2 = A8-A10 as outputs
     // (uart uses bits 6,7). Bits 3/4/5 spare.
     TRISC = 0b11000000;
     
@@ -214,19 +214,22 @@ void ports_init(void)
     // Port B2 = _RD
     // Port B3 = PGM (switches +25v onto VDD pin)
     // Port B4 = _CE1 (set hi for PGM))
-    PORTBbits.RB3 = 0;
-    PORTBbits.RB4 = 0;
+    PORTBbits.RB0 = 0; // set ALE false
+    PORTBbits.RB1 = 0; // set CE2 false
+    PORTBbits.RB2 = 1; // set RD_ false
+    PORTBbits.RB3 = 0; // set PGM false
+    PORTBbits.RB4 = 0; // set CE1_ true
 }
 
 // ****************************************************************************
 // high priority service routine for UART receive
 //
-void __interrupt(high_priority) high_isr(void)
+void __interrupt() isr(void)
 {
         char c = 0;
 
         // Disable interrupts
-        INTCONbits.GIEH = 0;
+        INTCONbits.GIE = 0;
         PIE1bits.RCIE=0;
 
         // Get the character from uart
@@ -245,7 +248,7 @@ void __interrupt(high_priority) high_isr(void)
 
         // Enable interrupts
         PIE1bits.RCIE=1;
-        INTCONbits.GIEH = 1;
+        INTCONbits.GIE = 1;
 }
 
 // ****************************************************************************
@@ -255,13 +258,14 @@ void setup_address(uint16_t addr)
 {
         // Set port D to output
         TRISD = OUTPUT;
+                
+        // Set _RD hi
+        PORTBbits.RB2 = 1;
     
         // Set the address lines. D0-7 is A0-7, C0-2 is A8-10
         uint8_t hi = addr >> 8;
-        PORTD       = addr & 0x00ff;
-        PORTCbits.RC0 = hi & 0x01;
-        PORTCbits.RC1 = hi >> 1 & 0x01;
-        PORTCbits.RC2 = hi >> 2 & 0x01;
+        PORTD      = addr & 0x00ff;
+        PORTC      = hi;
         __delay_us(1);
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
@@ -277,10 +281,13 @@ void setup_address(uint16_t addr)
 //
 uint8_t  read_port()
 {
-    // Set port D to input
+    // Set port D to input to read from DUT
     TRISD = INPUT;
     __delay_us(5);
-
+    
+    // Set CE2 hi
+    PORTBbits.RB1 = 1;
+    
     // Set _RD_ lo to enable reading
     PORTBbits.RB2 = 0;
     __delay_us(2);
@@ -292,7 +299,7 @@ uint8_t  read_port()
     __delay_us(2);
     PORTBbits.RB2 = 1;
 
-    // Set port D back to output
+    // Set port D back to output 
     __delay_us(5);
     TRISD = OUTPUT;
     
@@ -304,7 +311,7 @@ uint8_t  read_port()
 //
 void do_init()
 {
-    int16_t rate;
+    uint16_t rate;
     char s[8];
         
     rate = uart_init_brg();
@@ -380,7 +387,6 @@ void do_read()
     PORTBbits.RB1 = 1;
     // Set PGM lo - disabled
     PORTBbits.RB3 = 0;
-
         
     for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
@@ -388,10 +394,10 @@ void do_read()
             uart_puts(s);
             return;
         }
-
+        
         // Latch the 16 bit address.
         setup_address(addr);
-        
+    
         // Read port D
         uint8_t data = read_port();
         
@@ -484,7 +490,7 @@ void do_write()
         // Write the byte to port D
         write_port(data);
      
-        /* if verify */
+        /* if verify
             // Read from port D
             uint8_t read = read_port();
             
@@ -495,7 +501,7 @@ void do_write()
                 uart_puts(ads);
                 return;
             }
-        /* verify */
+         verify */
     }
     
     // Set CE2 lo - disable
@@ -518,18 +524,15 @@ void main(void) {
     // Wait for a 'U' char to init the uart BRG
     do_init();
     
+    // Enable interrupts
+    PIE1bits.RCIE=1;
+    INTCONbits.GIE = 1;
+        
     // Loop while waiting for commands
     // We flash a green LED so we know we are listening...
-    while (true) {
-        PORTEbits.RE0 = 1;
-        __delay_ms(250);      
-        PORTEbits.RE0 = 0;
-        PORTEbits.RE1 = 0;
-        PORTEbits.RE2 = 0;
-        __delay_ms(250);
-        
+    while (true) { 
         if (cmd_active) {
-            // turn on orange LED to show we're active
+            // Turn on orange LED to show we're active
             PORTEbits.RE1 = 1;
             
             // pop the $
@@ -551,6 +554,14 @@ void main(void) {
             // Clear the cmd
             clear();
         } 
+        
+        // Flash green light only
+        PORTEbits.RE0 = 1;
+        __delay_ms(250);      
+        PORTEbits.RE0 = 0;
+        PORTEbits.RE1 = 0;
+        PORTEbits.RE2 = 0;
+        __delay_ms(250);
     } 
 }
 

@@ -111,7 +111,7 @@ SenderThread::run()
                 serial.write(s);
                 // We wait for less than the program pulse time, so that
                 // the PIC receive buffer never dries out.
-                msleep(40);
+                msleep(45);
                 // until we have sent it
                 while (!serial.waitForBytesWritten(currentWaitTimeout)) {
                     msleep(1);

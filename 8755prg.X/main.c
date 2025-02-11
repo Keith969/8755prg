@@ -109,6 +109,15 @@ bool empty()
 //
 void push(char c)
 {    
+    // If the queue is nearly full, set CTS.)
+    int16_t s = addone(tail) - head;
+    if (s > HIWATER) {
+        setCTS(true);
+    }
+    else {
+        setCTS(false);
+    }
+        
     if ( addone(addone(tail)) == head) {
         // error - queue is full. Set error led.
         PORTEbits.RE2 = 1;
@@ -264,9 +273,9 @@ void setup_address(uint16_t addr)
     
         // Set the address lines. D0-7 is A0-7, C0-2 is A8-10
         uint8_t hi = addr >> 8;
-        PORTD      = addr & 0x00ff;
-        PORTC      = hi;
-        __delay_us(1);
+        LATD       = addr & 0x00ff;
+        LATC       = hi;
+        __delay_us(2);
         
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
@@ -279,28 +288,25 @@ void setup_address(uint16_t addr)
 // ****************************************************************************
 // Read a byte from port D
 //
-uint8_t  read_port()
+uint8_t read_port()
 {
     // Set port D to input to read from DUT
     TRISD = INPUT;
-    __delay_us(5);
-    
-    // Set CE2 hi
-    PORTBbits.RB1 = 1;
+    __delay_us(1);
     
     // Set _RD_ lo to enable reading
     PORTBbits.RB2 = 0;
-    __delay_us(2);
+    __delay_us(1);
 
     // Read port D
-    uint8_t data = PORTD;
+    uint8_t data = LATD;
 
     // Set _RD hi
-    __delay_us(2);
+    __delay_us(1);
     PORTBbits.RB2 = 1;
 
     // Set port D back to output 
-    __delay_us(5);
+    //__delay_us(1);
     TRISD = OUTPUT;
     
     return data;
@@ -429,7 +435,7 @@ void write_port(uint8_t data)
 {
     // Write the byte to port D
      __delay_us(10);
-    PORTD = data;
+    LATD = data;
 
     // Set CE1 hi 
     __delay_us(10);

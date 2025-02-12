@@ -152,6 +152,8 @@ guiMainWindow::saveHexFile()
     // foreach line
     for (auto line_iter = lines.begin(); line_iter != lines.end(); ++line_iter) {
         QString line = *line_iter;
+        // if done
+        if (line.startsWith("DUT") || line.isEmpty()) break;
         std::vector<uint8_t> data;
         uint32_t checksum=0;
 

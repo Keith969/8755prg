@@ -60,6 +60,7 @@ guiMainWindow::guiMainWindow(QWidget *parent)
     ui.baudRate->addItem("19200");
     ui.baudRate->addItem("9600");
     ui.baudRate->addItem("4800");
+    ui.baudRate->addItem("2400");
 
     this->setStatusBar(&m_statusBar);
 
@@ -195,7 +196,7 @@ guiMainWindow::saveHexFile()
 
 // *****************************************************************************
 // Function     [ getFlowControl ]
-// Description  [  ]
+// Description  [ Should really always use RTS/CTS ]
 // *****************************************************************************
 int32_t
 guiMainWindow::getFlowControl()
@@ -228,6 +229,8 @@ guiMainWindow::init()
     m_senderThread.transaction(portName, CMD_INIT, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Initialising...");
+    clearText();
+    appendText("Initialising programmer...");
 }
 
 // *****************************************************************************
@@ -256,6 +259,8 @@ guiMainWindow::read()
     m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
 
     statusBar()->showMessage("Reading...");
+    clearText();
+    appendText("Reading data from DUT...");
 }
 
 // *****************************************************************************
@@ -328,6 +333,8 @@ guiMainWindow::write()
         m_senderThread.transaction(portName, request, timeout, baudRate, flowControl, true);
 
         statusBar()->showMessage("Writing...");
+        clearText();
+        appendText("Writing data to DUT...");
     }
     else {
         clearText();
@@ -346,21 +353,29 @@ guiMainWindow::verify()
         QMessageBox::critical(this, "Baud rate", "Init baud rate first!", QMessageBox::Ok);
         return;
     }
-    QString portName = ui.serialPort->currentText();
-    int timeout = ui.timeOut->value() * 1000;
-    int baudRate = ui.baudRate->currentText().toInt();
-    int flowControl = getFlowControl();
-    m_mode = op_verify;
+    if (size() > 0) {
+        QString portName = ui.serialPort->currentText();
+        int timeout = ui.timeOut->value() * 1000;
+        int baudRate = ui.baudRate->currentText().toInt();
+        int flowControl = getFlowControl();
+        m_mode = op_verify;
 
-    statusBar()->showMessage(QString("Status: Running, connected to port %1.")
-                                 .arg(portName));
+        statusBar()->showMessage(QString("Status: Running, connected to port %1.")
+                                     .arg(portName));
 
-    setLedColour(Qt::red);
+        setLedColour(Qt::red);
 
-    // Send the cmd.
-    m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
+        // Send the cmd.
+        m_senderThread.transaction(portName, CMD_READ, timeout, baudRate, flowControl);
 
-    statusBar()->showMessage("Verifying...");
+        statusBar()->showMessage("Verifying...");
+        clearText();
+        appendText("Verifying DUT data...");
+    }
+    else {
+        clearText();
+        appendText("No HEX data - please open a HEX file!\n");
+    }
 }
 
 // *****************************************************************************

@@ -121,7 +121,7 @@ void push(char c)
     if ( addone(addone(tail)) == head) {
         // error - queue is full. Set error led.
         PORTEbits.RE2 = 1;
-        __delay_ms(5000);
+        __delay_ms(2000);
         return;
     }
     else {
@@ -151,7 +151,7 @@ char pop()
     if (empty()) {
         // error - queue is empty.  Set error led.
         PORTEbits.RE2 = 1;
-        __delay_ms(5000);
+        __delay_ms(2000);
         return c;
     }
     else {
@@ -195,6 +195,7 @@ void ports_init(void)
     ADCON0bits.ADON = 0;
     ANSELA = 0;           // by default port A is analog
     ANSELB = 0;           // by default port B is analog
+    ANSELD = 0;           // by default port D is part analog, sigh
     
     // Use port E for status LEDs
     TRISEbits.TRISE0 = 0; // green  LED, while loop
@@ -299,7 +300,7 @@ uint8_t read_port()
     __delay_us(1);
 
     // Read port D
-    uint8_t data = LATD;
+    uint8_t data = PORTD;
 
     // Set _RD hi
     __delay_us(1);

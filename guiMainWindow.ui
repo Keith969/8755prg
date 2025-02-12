@@ -20,7 +20,7 @@
       <item>
        <widget class="QGroupBox" name="groupBox_2">
         <property name="title">
-         <string>Configuration</string>
+         <string>Set the serial port and desired baud rate, then press 'Init' to link to programmer.</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>

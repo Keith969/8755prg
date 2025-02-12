@@ -404,22 +404,34 @@ guiMainWindow::senderShowResponse(const QString &s)
     }
     // If a verify, compare with m_HexFile
     else if (m_mode == op_verify) {
-
+        clearText();
         // Compare each char of s to the hexfile
         std::vector<hexDataChunk> hexdata = m_HexFile->hexData();
         int32_t j=0;
         bool ok = true;
         for (auto iter = hexdata.begin(); iter != hexdata.end(); ++iter, ++j) {
             hexDataChunk chunk = *iter;
+            // Write the address of the chunk
+            appendText(QString("$1: ").arg(chunk.address()));
+            j += 6; // skip addr e.g. '0000: '
             std::vector<uint8_t> data = chunk.data();
             for (int32_t i=0; i < data.size(); ++i) {
-                // hex character
+                // chunk's hex characters given by data.at(i)
                 uint8_t hex_chr = data.at(i);
-                uint16_t dev_chr = s.toInt(&ok, 16);
-                // compare the data?
-
-                // Ideally we'd highlight in the ui.textEdit the char(s)
-                // that do not match
+                // dev's data
+                QString ss = s.mid(j, 2);
+                // Convert to hex char
+                uint8_t dev_chr = ss.toInt(&ok, 16);
+                // Compare the data. If equal, write the data,
+                // if not equal, write the data in red.
+                if (hex_chr == dev_chr) {
+                    appendText(QString("$1 ").arg(ss));
+                }
+                else {
+                    ui.textEdit->setTextColor(Qt::red);
+                    appendText(QString("$1 ").arg(ss));
+                    ui.textEdit->setTextColor(Qt::black);
+                }
             }
         }
     }

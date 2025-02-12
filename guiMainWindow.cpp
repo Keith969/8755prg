@@ -408,6 +408,7 @@ guiMainWindow::senderShowResponse(const QString &s)
         // Compare each char of s to the hexfile
         std::vector<hexDataChunk> hexdata = m_HexFile->hexData();
         int32_t j=0;
+        int32_t bad=0;
         bool ok = true;
         for (auto iter = hexdata.begin(); iter != hexdata.end(); ++iter, ++j) {
             hexDataChunk chunk = *iter;
@@ -432,6 +433,7 @@ guiMainWindow::senderShowResponse(const QString &s)
                     ui.textEdit->setTextColor(Qt::red);
                     ui.textEdit->insertPlainText(QString("%1 ").arg(ss,2,QChar('0')));
                     ui.textEdit->setTextColor(Qt::black);
+                    bad++;
                 }
                 // increment j pointer
                 if (i == 15) {
@@ -441,6 +443,12 @@ guiMainWindow::senderShowResponse(const QString &s)
                 }
             }
             ui.textEdit->insertPlainText("\n");
+        }
+        if (bad != 0) {
+            appendText(QString("DUT has %1 differences with hex file!").arg(bad));
+        }
+        else {
+            appendText("DUT verified correct.");
         }
     }
     else if (m_mode == op_init) {

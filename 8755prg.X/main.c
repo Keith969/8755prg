@@ -359,7 +359,7 @@ void do_blank()
         uint8_t data = read_port();
                       
         if (data != 0xff) {
-            uart_puts("Blank check fail at address ");
+            uart_puts("Erase check fail at address ");
             sprintf(ads, "0x%04x = ", addr);
             uart_puts(ads);
             sprintf(ads, "0x%02x\n", data);
@@ -373,7 +373,7 @@ void do_blank()
     PORTBbits.RB1 = 0;
     
     if (ok) {
-        s = "Passed blank check\n";
+        s = "Erase check passed.\n";
         uart_puts(s);
     }  
 }
@@ -501,7 +501,7 @@ void do_write()
     // Set CE2 lo - disable
     PORTBbits.RB1 = 0;
     
-    sprintf(ads, "write completed.\n");
+    sprintf(ads, "Write completed.\n");
     uart_puts(ads);
 }
 

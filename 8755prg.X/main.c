@@ -496,25 +496,12 @@ void do_write()
         
         // Write the byte to port D
         write_port(data);
-     
-        /* if verify
-            // Read from port D
-            uint8_t read = read_port();
-            
-            if (read != data) {
-                // Set CE2 lo to disable writing.
-                PORTBbits.RB1 = 0;
-                sprintf(ads, "write verify fail, write=%02x, read=%02x\n", data, read);
-                uart_puts(ads);
-                return;
-            }
-         verify */
     }
     
     // Set CE2 lo - disable
     PORTBbits.RB1 = 0;
     
-    sprintf(ads, "write completed & verified\n");
+    sprintf(ads, "write completed.\n");
     uart_puts(ads);
 }
 

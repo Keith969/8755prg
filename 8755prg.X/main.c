@@ -486,9 +486,9 @@ void do_write()
 
         // Get two ascii chars from queue and convert to 8 bit data.
         c = pop();
-        uint8_t lo = charToHexDigit(c);
-        c = pop();
         uint8_t hi = charToHexDigit(c);
+        c = pop();
+        uint8_t lo = charToHexDigit(c);
         uint8_t data = hi*16+lo;
         
         // Latch the 16 bit address.

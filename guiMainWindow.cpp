@@ -412,27 +412,35 @@ guiMainWindow::senderShowResponse(const QString &s)
         for (auto iter = hexdata.begin(); iter != hexdata.end(); ++iter, ++j) {
             hexDataChunk chunk = *iter;
             // Write the address of the chunk
-            appendText(QString("$1: ").arg(chunk.address()));
+            QString ss; ss.setNum(chunk.address(), 16);
+            ui.textEdit->insertPlainText(QString("%1: ").arg(ss,4,QChar('0')));
             j += 6; // skip addr e.g. '0000: '
             std::vector<uint8_t> data = chunk.data();
             for (int32_t i=0; i < data.size(); ++i) {
                 // chunk's hex characters given by data.at(i)
                 uint8_t hex_chr = data.at(i);
-                // dev's data
+                // dev's data is 2 chars
                 QString ss = s.mid(j, 2);
                 // Convert to hex char
                 uint8_t dev_chr = ss.toInt(&ok, 16);
                 // Compare the data. If equal, write the data,
                 // if not equal, write the data in red.
                 if (hex_chr == dev_chr) {
-                    appendText(QString("$1 ").arg(ss));
+                    ui.textEdit->insertPlainText(QString("%1 ").arg(ss,2,QChar('0')));
                 }
                 else {
                     ui.textEdit->setTextColor(Qt::red);
-                    appendText(QString("$1 ").arg(ss));
+                    ui.textEdit->insertPlainText(QString("%1 ").arg(ss,2,QChar('0')));
                     ui.textEdit->setTextColor(Qt::black);
                 }
+                // increment j pointer
+                if (i == 15) {
+                    j += 2;
+                } else {
+                    j += 3;
+                }
             }
+            ui.textEdit->insertPlainText("\n");
         }
     }
     else if (m_mode == op_init) {

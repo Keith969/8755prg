@@ -32,7 +32,8 @@
 // See e.g. Aho, Hopcroft & Ullman, 'Data structures and Algorithms'
 #define QUEUESIZE 1024             // Queue size
 #define ENDQUEUE  QUEUESIZE-1      // End of queue
-#define HIWATER   QUEUESIZE-16     // The highwater mark, stop sending.
+#define HIWATER   QUEUESIZE-32     // The highwater mark, stop sending.
+#define LOWATER   32               // The lowwater mark, resume sending.
 
 //
 // static variables
@@ -43,6 +44,7 @@ static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
 static int16_t bytes_pushed = 0;   // pushed into queue
 static int16_t bytes_popped = 0;   // popped from queue
+statuc bool    queue_empty = false;// wait if queue empty
 
 // ****************************************************************************
 // setCTS()
@@ -83,7 +85,7 @@ int16_t size()
     if (s > HIWATER) {
         setCTS(true);
     }
-    else {
+    if (s < LOWATER) {
         setCTS(false);
     }
     return s;
@@ -119,10 +121,11 @@ void push(char c)
     }
         
     if ( addone(addone(tail)) == head) {
-        // error - queue is full. Set error led.
+        // error - queue is full. Flash orange led.
         PORTEbits.RE2 = 1;
-        __delay_ms(2000);
-        return;
+        __delay_ms(100);
+        PORTEbits.RE2 = 0;
+        __delay_ms(100);
     }
     else {
         tail = addone(tail);
@@ -141,28 +144,30 @@ void push(char c)
 //
 char pop()
 {
-    // pop() is called in write() and could be interrupted, which would
-    // cause havoc to the queue. So disable interrupts.)
+    // Check for empty. Do this before disabling interrupts
+    // as need to receive chars still.
+    
+    while (empty()) {
+        // Wait for queue to fill, flash red led.
+        PORTEbits.RE2 = 1;
+        __delay_ms(100);
+        PORTEbits.RE2 = 0;
+        __delay_ms(100);
+    }
+
+    // Disable interrupts
     INTCONbits.GIE = 0;
     PIE1bits.RCIE=0;
-    
-    char c = 0;
-    
-    if (empty()) {
-        // error - queue is empty.  Set error led.
-        PORTEbits.RE2 = 1;
-        __delay_ms(2000);
-        return c;
-    }
-    else {
-        c = queue[head];
-        head = addone(head);
-        bytes_popped++;
-    }
+
+    // Get the head of the queue.
+    char c = queue[head];
+    head = addone(head);
+    bytes_popped++;
     
     // Enable interrupts
     INTCONbits.GIE = 1;
     PIE1bits.RCIE = 1;
+
     return c;
 }
 
@@ -193,9 +198,10 @@ void ports_init(void)
 {
     // disable analog else weird things happen
     ADCON0bits.ADON = 0;
-    ANSELA = 0;           // by default port A is analog
-    ANSELB = 0;           // by default port B is analog
-    ANSELD = 0;           // by default port D is part analog, sigh
+    ANSELA = 0;           // Port A all digital
+    ANSELB = 0;           // Port B all digital
+    ANSELC = 0;           // Port C all digital
+    ANSELD = 0;           // Port D all digital
     
     // Use port E for status LEDs
     TRISEbits.TRISE0 = 0; // green  LED, while loop

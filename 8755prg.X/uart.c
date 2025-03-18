@@ -16,11 +16,6 @@
 #include <stdarg.h>
 #include <string.h>
 
-//
-// static variables
-//
-static bool    uart_ready = false;
-
 // ****************************************************************************
 // Function         [ uart_init ]
 // Description      [ ]
@@ -68,9 +63,7 @@ void uart_init(const uint32_t baud_rate)
         SPBRG  =  n & 0x00FF;
     }
     
-    //RCONbits.IPEN = 1;   // enable priority interrupts
     INTCONbits.PEIE = 1; // enable all unmasked interrupts
-    //IPR1bits.RCIP = 1;   // receive interrupts high priority
     
     // Enable UART receive interrupt
     PIE1bits.RCIE=1;  

@@ -344,7 +344,6 @@ void do_blank()
     uint16_t addr;
     char ads[32];
     bool ok = true;
-    char *s;
         
     // Set CE2 hi to enable reading
     PORTBbits.RB1 = 1;
@@ -355,8 +354,7 @@ void do_blank()
         
     for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
-            s = "Check aborted\n";
-            uart_puts(s);
+            uart_puts("Chack aborted\n");
             return;
         }
 
@@ -381,7 +379,7 @@ void do_blank()
     PORTBbits.RB1 = 0;
     
     if (ok) {
-        s = "Erase check passed.\n";
+        s = "OK";
         uart_puts(s);
     }  
 }
@@ -405,8 +403,7 @@ void do_read()
         
     for (addr = 0; addr < 2048; ++addr) {
         if (cmd_active == false) {
-            char *s = "Read aborted\n";
-            uart_puts(s);
+            uart_puts("Read aborted\n");
             return;
         }
         
@@ -472,7 +469,6 @@ void write_port(uint8_t data)
 void do_write()
 {
     uint16_t addr;
-    char ads[48];   
     char c;
     
     // Set port D to output
@@ -487,8 +483,7 @@ void do_write()
         
     for (addr = 0; addr < 2048; addr++) {
         if (cmd_active == false) {
-            char *s = "Write aborted\n";
-            uart_puts(s);
+            uart_puts("Write aborted\n");
             return;
         }
 
@@ -509,8 +504,7 @@ void do_write()
     // Set CE2 lo - disable
     PORTBbits.RB1 = 0;
     
-    sprintf(ads, "Write completed.\n");
-    uart_puts(ads);
+    uart_puts("OK");
 }
 
 // ****************************************************************************

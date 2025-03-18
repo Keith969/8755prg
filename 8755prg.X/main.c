@@ -26,6 +26,7 @@
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
+#define CMD_IDEN '4'               // Get the ID of the device ("8755")
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -44,7 +45,7 @@ static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
 static int16_t bytes_pushed = 0;   // pushed into queue
 static int16_t bytes_popped = 0;   // popped from queue
-statuc bool    queue_empty = false;// wait if queue empty
+static bool    queue_empty = false;// wait if queue empty
 
 // ****************************************************************************
 // setCTS()
@@ -121,7 +122,7 @@ void push(char c)
     }
         
     if ( addone(addone(tail)) == head) {
-        // error - queue is full. Flash orange led.
+        // error - queue is full. Flash red led.
         PORTEbits.RE2 = 1;
         __delay_ms(100);
         PORTEbits.RE2 = 0;
@@ -202,6 +203,7 @@ void ports_init(void)
     ANSELB = 0;           // Port B all digital
     ANSELC = 0;           // Port C all digital
     ANSELD = 0;           // Port D all digital
+    ANSELE = 0;           // Port E all digital
     
     // Use port E for status LEDs
     TRISEbits.TRISE0 = 0; // green  LED, while loop
@@ -533,7 +535,8 @@ void main(void) {
     while (true) { 
         if (cmd_active) {
             // Turn on orange LED to show we're active
-            PORTEbits.RE1 = 1;
+            PORTEbits.RE0 = 0; // green off
+            PORTEbits.RE1 = 1; // orange on
             
             // pop the $
             pop();
@@ -550,18 +553,24 @@ void main(void) {
             else if (cmd == CMD_CHEK) {
                 do_blank();
             }
+            else if (cmd == CMD_INIT) {
+                uart_puts("Already init");
+            }
+            else if (cmd == CMD_IDEN) {
+                uart_puts("8755");
+            }
 
             // Clear the cmd
             clear();
         } 
+        else {
+            // Green light to show we're ready
+            PORTEbits.RE0 = 1; // green on
+            PORTEbits.RE1 = 0; // orange off
+        }
         
-        // Flash green light only
-        PORTEbits.RE0 = 1;
-        __delay_ms(250);      
-        PORTEbits.RE0 = 0;
-        PORTEbits.RE1 = 0;
-        PORTEbits.RE2 = 0;
-        __delay_ms(250);
+        // Delay for the loop
+        __delay_us(10);  
     } 
 }
 

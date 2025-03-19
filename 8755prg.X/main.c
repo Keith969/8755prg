@@ -379,8 +379,7 @@ void do_blank()
     PORTBbits.RB1 = 0;
     
     if (ok) {
-        s = "OK";
-        uart_puts(s);
+        uart_puts("OK");
     }  
 }
 

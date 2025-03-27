@@ -27,6 +27,8 @@
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
 #define CMD_IDEN '4'               // Get the ID of the device ("8755")
+#define CMD_TYPE '5'               // Set the device type
+#define CMD_RSET '9'               // Reset the PIC
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -43,8 +45,6 @@ static char    queue[QUEUESIZE];   // The receiver queue
 static int16_t head = 0;           // head of the queue
 static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
-static int16_t bytes_pushed = 0;   // pushed into queue
-static int16_t bytes_popped = 0;   // popped from queue
 static bool    queue_empty = false;// wait if queue empty
 
 // ****************************************************************************
@@ -131,7 +131,6 @@ void push(char c)
     else {
         tail = addone(tail);
         queue[tail] = c;
-        bytes_pushed++;
     }  
 }
 
@@ -163,7 +162,6 @@ char pop()
     // Get the head of the queue.
     char c = queue[head];
     head = addone(head);
-    bytes_popped++;
     
     // Enable interrupts
     INTCONbits.GIE = 1;
@@ -551,6 +549,9 @@ void main(void) {
             }
             else if (cmd == CMD_IDEN) {
                 uart_puts("8755");
+            }
+            else if (cmd == CMD_RSET) {
+                asm("RESET");
             }
 
             // Clear the cmd

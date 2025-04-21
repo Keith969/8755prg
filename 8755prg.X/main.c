@@ -11,7 +11,6 @@
 //
 // ****************************************************************************
 
-#include <pic16f1789.h>
 #include "conbits.h"
 #include "stdint.h"
 #include "string.h"
@@ -22,11 +21,20 @@
 #define INPUT  0xFF
 #define OUTPUT 0x00
 
+#define DEV_2716 0
+#define DEV_2732 1
+#define DEV_2532 2
+#define DEV_2708 3
+#define DEV_T2716 4
+#define DEV_8755 5
+#define DEV_8748 6
 // cmds
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
 #define CMD_CHEK '3'               // Check EPROM is blank (all FF))
 #define CMD_IDEN '4'               // Get the ID of the device ("8755")
+#define CMD_TYPE '5'               // Set the device type
+#define CMD_RSET '9'               // Reset the PIC
 #define CMD_INIT 'U'               // init the baud rate
 
 // Received chars are put into a queue.
@@ -43,9 +51,9 @@ static char    queue[QUEUESIZE];   // The receiver queue
 static int16_t head = 0;           // head of the queue
 static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
-static int16_t bytes_pushed = 0;   // pushed into queue
-static int16_t bytes_popped = 0;   // popped from queue
 static bool    queue_empty = false;// wait if queue empty
+static int8_t  devType = 5;        // 5 = 8755, 6 = 8748
+static int16_t bytes = 2048;       // size of program data
 
 // ****************************************************************************
 // setCTS()
@@ -131,7 +139,6 @@ void push(char c)
     else {
         tail = addone(tail);
         queue[tail] = c;
-        bytes_pushed++;
     }  
 }
 
@@ -147,12 +154,11 @@ char pop()
 {
     // Check for empty. Do this before disabling interrupts
     // as need to receive chars still.
-    
     while (empty()) {
-        // Wait for queue to fill, flash red led.
-        PORTEbits.RE2 = 1;
+        // Wait for queue to fill, flash green led.
+        PORTEbits.RE0 = 1;
         __delay_ms(100);
-        PORTEbits.RE2 = 0;
+        PORTEbits.RE0 = 0;
         __delay_ms(100);
     }
 
@@ -163,7 +169,6 @@ char pop()
     // Get the head of the queue.
     char c = queue[head];
     head = addone(head);
-    bytes_popped++;
     
     // Enable interrupts
     INTCONbits.GIE = 1;
@@ -237,6 +242,23 @@ void ports_init(void)
     PORTBbits.RB2 = 1; // set RD_ false
     PORTBbits.RB3 = 0; // set PGM false
     PORTBbits.RB4 = 0; // set CE1_ true
+}
+
+// ****************************************************************************
+// Set the device type and the RE0/1 bits
+//
+void
+do_type()
+{
+    devType = (int8_t) pop() - (int8_t) '0';
+            
+    if (devType == DEV_8755) {
+        bytes = 2048;
+    } else if (devType == DEV_8748) {
+        bytes = 2048;
+    }
+    
+    uart_puts("OK");
 }
 
 // ****************************************************************************
@@ -352,7 +374,7 @@ void do_blank()
     // Set _CE1 lo
     PORTBbits.RB4 = 0;
         
-    for (addr = 0; addr < 2048; ++addr) {
+    for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
             uart_puts("Chack aborted\n");
             return;
@@ -400,7 +422,7 @@ void do_read()
     // Set PGM lo - disabled
     PORTBbits.RB3 = 0;
         
-    for (addr = 0; addr < 2048; ++addr) {
+    for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
             uart_puts("Read aborted\n");
             return;
@@ -480,7 +502,7 @@ void do_write()
     // Set PGM lo - disable
     PORTBbits.RB3 = 0;
         
-    for (addr = 0; addr < 2048; addr++) {
+    for (addr = 0; addr < bytes; addr++) {
         if (cmd_active == false) {
             uart_puts("Write aborted\n");
             return;
@@ -549,8 +571,19 @@ void main(void) {
             else if (cmd == CMD_INIT) {
                 uart_puts("Already init");
             }
+            else if (cmd == CMD_TYPE) {
+                do_type();
+            }
             else if (cmd == CMD_IDEN) {
-                uart_puts("8755");
+                if (devType == 5)
+                    uart_puts("8755");
+                if (devType == 6)
+                    uart_puts("8748");
+                else
+                    uart_puts("NONE");
+            }
+            else if (cmd == CMD_RSET) {
+                asm("RESET");
             }
 
             // Clear the cmd

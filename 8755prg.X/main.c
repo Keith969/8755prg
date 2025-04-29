@@ -277,6 +277,7 @@ do_type()
     } else if (devType == DEV_8748) {
         bytes = 2048;
         PORTAbits.RA0 = 1;
+        PORTBbits.RB5 = 1; // set RESET hi (false))
     }
     
     uart_puts("OK");

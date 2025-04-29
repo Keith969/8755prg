@@ -1,5 +1,6 @@
 // ****************************************************************************
 //
+// Project              : 8755prg. 8755 / 8748 programmer
 // File                 : main.c
 // Hardware Environment : PIC 16F1789
 //                        5v supply voltage
@@ -218,30 +219,48 @@ void ports_init(void)
     PORTEbits.RE1 = 0;
     PORTEbits.RE2 = 0;
     
-    // Port A for uart control. Bits 0,1,4-7 spare.
+    // Port RA0 = SELECT (hi for 8748)
+    // Port RA1 = EA (8748 only, else kept lo)
+    // Port RA2 = CTS
+    // Port RA3 = RTS
+    // Port RA4 = PROG
+    // Port RA5 unused
+    // Port RA6/7 XTAL
+    TRISAbits.TRISA0 = 0;
+    TRISAbits.TRISA1 = 0;
     TRISAbits.TRISA2 = 0; // CTS is an active low output
     TRISAbits.TRISA3 = 1; // RTS is an active low input
+    TRISAbits.TRISA4 = 0;
+    TRISAbits.TRISA5 = 0;
+    PORTAbits.RA0 = 0;    // select 8755
+    PORTAbits.RA1 = 0;    // EA lo
     PORTAbits.RA2 = 0;    // assert CTS
+    PORTAbits.RA4 = 0;    // PROG lo
 
-    // Port D output for address bits AD0-A7
+    // Port D output for address/data bits AD0-AD7
     TRISD = OUTPUT;
+    PORTD = 0;
     
-    // Port C bits 0,1,2 = A8-A10 as outputs
-    // (uart uses bits 6,7). Bits 3/4/5 spare.
+    // Port C bits 0,1,2,3 = A8-A11 as outputs
+    // Port RC4,5 unused
+    // Port RC6,7 uart tx/rx
     TRISC = 0b11000000;
     
-    // Port B for EPROM control. Bits 5-7 spare.
     TRISB = OUTPUT;
     // Port B0 = ALE
     // Port B1 = CE2
-    // Port B2 = _RD
-    // Port B3 = PGM (switches +25v onto VDD pin)
-    // Port B4 = _CE1 (set hi for PGM))
+    // Port B2 = RD_
+    // Port B3 = VDD (switches +25v onto VDD pin)
+    // Port B4 = CE1_
+    // Port RB5 = RESET/RESET_
+    // Port RB6 unused
+    // Port RB7 unused
     PORTBbits.RB0 = 0; // set ALE false
     PORTBbits.RB1 = 0; // set CE2 false
     PORTBbits.RB2 = 1; // set RD_ false
-    PORTBbits.RB3 = 0; // set PGM false
+    PORTBbits.RB3 = 0; // set VDD +5v
     PORTBbits.RB4 = 0; // set CE1_ true
+    PORTBbits.RB5 = 0; // set RESET false for 8755
 }
 
 // ****************************************************************************
@@ -254,8 +273,10 @@ do_type()
             
     if (devType == DEV_8755) {
         bytes = 2048;
+        PORTAbits.RA0 = 0;
     } else if (devType == DEV_8748) {
         bytes = 2048;
+        PORTAbits.RA0 = 1;
     }
     
     uart_puts("OK");
@@ -368,11 +389,11 @@ void do_blank()
     bool ok = true;
         
     // Set CE2 hi to enable reading
-    PORTBbits.RB1 = 1;
+    LATBbits.LATB1 = 1;
     // Set PGM lo
-    PORTBbits.RB3 = 0;
+    LATBbits.LATB3 = 0;
     // Set _CE1 lo
-    PORTBbits.RB4 = 0;
+    LATBbits.LATB4 = 0;
         
     for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
@@ -398,7 +419,7 @@ void do_blank()
     }
     
     // Set CE2 lo to disable reading
-    PORTBbits.RB1 = 0;
+    LATBbits.LATB1 = 0;
     
     if (ok) {
         uart_puts("OK");
@@ -415,12 +436,12 @@ void do_read()
     char ads[16];
     uint8_t col=0;
     
-    // Set _CE1 lo - enabled
-    PORTBbits.RB4 = 0;    
+    // Set CE1_ lo - enabled
+    LATBbits.LATB4 = 0;    
     // Set CE2 hi - enabled
-    PORTBbits.RB1 = 1;
+    LATBbits.LATB1 = 1;
     // Set PGM lo - disabled
-    PORTBbits.RB3 = 0;
+    LATBbits.LATB3 = 0;
         
     for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
@@ -452,7 +473,7 @@ void do_read()
     }
     
     // Set CE2 lo - disable
-    PORTBbits.RB1 = 0;
+    LATBbits.LATB1 = 0;
 }
 
 // ****************************************************************************

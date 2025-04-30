@@ -358,7 +358,7 @@ void setup_address(uint16_t addr)
         PORTBbits.RB5 = 0;
         __delay_us(5);
         PORTBbits.RB5 = 1;
-        __delay_us(20);
+        __delay_us(10);
     }
 }
 

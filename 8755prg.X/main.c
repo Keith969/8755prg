@@ -54,7 +54,8 @@ static int16_t tail = ENDQUEUE;    // tail of the  queue
 static bool    cmd_active = false; // Are we in a cmd?
 static bool    queue_empty = false;// wait if queue empty
 static int8_t  devType = 5;        // 5 = 8755, 6 = 8748
-static int16_t bytes = 2048;       // size of program data
+static int16_t bytes = 1024;       // size of program data
+static bool    writing = false;    // are we programming?
 
 // ****************************************************************************
 // setCTS()
@@ -232,10 +233,10 @@ void ports_init(void)
     TRISAbits.TRISA3 = 1; // RTS is an active low input
     TRISAbits.TRISA4 = 0;
     TRISAbits.TRISA5 = 0;
-    PORTAbits.RA0 = 0;    // select 8755
-    PORTAbits.RA1 = 0;    // EA lo
-    PORTAbits.RA2 = 0;    // assert CTS
-    PORTAbits.RA4 = 0;    // PROG lo
+    PORTAbits.RA0    = 0; // select 8755
+    PORTAbits.RA1    = 0; // EA lo
+    PORTAbits.RA2    = 0; // assert CTS
+    PORTAbits.RA4    = 0; // PROG lo
 
     // Port D output for address/data bits AD0-AD7
     TRISD = OUTPUT;
@@ -259,7 +260,7 @@ void ports_init(void)
     PORTBbits.RB1 = 0; // set CE2 false
     PORTBbits.RB2 = 1; // set RD_ false
     PORTBbits.RB3 = 0; // set VDD +5v
-    PORTBbits.RB4 = 0; // set CE1_ true
+    PORTBbits.RB4 = 1; // set CE1_ false
     PORTBbits.RB5 = 0; // set RESET false for 8755
 }
 
@@ -272,12 +273,15 @@ do_type()
     devType = (int8_t) pop() - (int8_t) '0';
             
     if (devType == DEV_8755) {
-        bytes = 2048;
-        PORTAbits.RA0 = 0;
-    } else if (devType == DEV_8748) {
-        bytes = 2048;
-        PORTAbits.RA0 = 1;
-        PORTBbits.RB5 = 1; // set RESET hi (false))
+        bytes = 2048;      // 8755 has 2K EPROM
+        PORTAbits.RA0 = 0; // SEL
+        PORTBbits.RB5 = 0; // RESET
+    } else 
+    if (devType == DEV_8748) {
+        bytes = 1024;      // 8748 has 1K EPROM
+        PORTAbits.RA0 = 1; // SEL
+        PORTBbits.RB5 = 1; // RESET_
+        PORTBbits.RB2 = 0; // RD_/PSEN
     }
     
     uart_puts("OK");
@@ -288,29 +292,29 @@ do_type()
 //
 void __interrupt() isr(void)
 {
-        char c = 0;
+    char c = 0;
 
-        // Disable interrupts
-        INTCONbits.GIE = 0;
-        PIE1bits.RCIE=0;
+    // Disable interrupts
+    INTCONbits.GIE = 0;
+    PIE1bits.RCIE=0;
 
-        // Get the character from uart
-        bool ok = uart_getc(&c);
-        if (ok) {
-            // Push the char onto stack
-            push(c);
+    // Get the character from uart
+    bool ok = uart_getc(&c);
+    if (ok) {
+        // Push the char onto stack
+        push(c);
 
-            // Check if we have a cmd yet. 
-            int16_t n = size();
-            if ( (first() == '$') && n > 1) {
-                // We have a command (2 chars at head of queue))
-                cmd_active = true;
-            }
+        // Check if we have a cmd yet. 
+        int16_t n = size();
+        if ( (first() == '$') && n > 1) {
+            // We have a command (2 chars at head of queue))
+            cmd_active = true;
         }
+    }
 
-        // Enable interrupts
-        PIE1bits.RCIE=1;
-        INTCONbits.GIE = 1;
+    // Enable interrupts
+    PIE1bits.RCIE=1;
+    INTCONbits.GIE = 1;
 }
 
 // ****************************************************************************
@@ -318,49 +322,44 @@ void __interrupt() isr(void)
 //
 void setup_address(uint16_t addr)
 {
-        // Set port D to output
-        TRISD = OUTPUT;
-                
+    // We get here with
+    // T0     lo
+    // CE2    hi
+    // PGM    lo
+    // RESET_ lo (if 8748)
+    // EA     hi (if 8748)
+    // T0     hi (if 8748)
+    
+    // Set port D to output address
+    TRISD = OUTPUT;
+
+    if (devType == DEV_8755) {
         // Set _RD hi
         PORTBbits.RB2 = 1;
-    
-        // Set the address lines. D0-7 is A0-7, C0-2 is A8-10
-        uint8_t hi = addr >> 8;
-        LATD       = addr & 0x00ff;
-        LATC       = hi;
-        __delay_us(2);
-        
+    }
+
+    // Set the address lines. D0-7 is A0-7, C0-2 is A8-10
+    uint8_t hi = addr >> 8;
+    LATD       = addr & 0x00ff;
+    LATC       = hi;
+    __delay_us(5);
+
+    // If we're an 8755
+    if (devType == DEV_8755) {
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
         __delay_us(1);
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
         PORTBbits.RB0 = 0;
         __delay_us(1);
-}
-
-// ****************************************************************************
-// Set the address on ports D and C, and load by pulsing RESET_
-//
-void setup_write_address(uint16_t addr)
-{
-        // Set port D to output
-        TRISD = OUTPUT;
-                
-        // Set _RD hi
-        PORTBbits.RB2 = 1;
-    
-        // Set the address lines. D0-7 is A0-7, C0-2 is A8-10
-        uint8_t hi = addr >> 8;
-        LATD       = addr & 0x00ff;
-        LATC       = hi;
-        __delay_us(2);
-        
-        // Set RESET_ lo; AD0-7, A8-10
+    }
+    else {
+        // 8748 set RESET_ hi to latch addresss
         PORTBbits.RB5 = 0;
-        __delay_us(1);
-        // Set RESET_ hi, latches AD0-7,A8-10
+        __delay_us(5);
         PORTBbits.RB5 = 1;
-        __delay_us(1);
+        __delay_us(20);
+    }
 }
 
 // ****************************************************************************
@@ -370,21 +369,33 @@ uint8_t read_port()
 {
     // Set port D to input to read from DUT
     TRISD = INPUT;
-    __delay_us(1);
+    __delay_us(5);
     
     // Set _RD_ lo to enable reading
-    PORTBbits.RB2 = 0;
-    __delay_us(1);
+    if (devType == DEV_8755) {
+        PORTBbits.RB2 = 0;
+        __delay_us(1);
+    }
+    else {
+        // 8748
+        __delay_us(1);
+    }
 
     // Read port D
     uint8_t data = PORTD;
 
     // Set _RD hi
-    __delay_us(1);
-    PORTBbits.RB2 = 1;
+    if (devType == DEV_8755) {
+        __delay_us(1);
+        PORTBbits.RB2 = 1;
+    }
+    else {
+        // 8748 set RESET_ lo
+        __delay_us(20);
+        PORTBbits.RB5 = 0; 
+    }
 
     // Set port D back to output 
-    //__delay_us(1);
     TRISD = OUTPUT;
     
     return data;
@@ -414,12 +425,12 @@ void do_blank()
     char ads[32];
     bool ok = true;
         
-    // Set CE2 hi to enable reading
-    LATBbits.LATB1 = 1;
-    // Set PGM lo
-    LATBbits.LATB3 = 0;
-    // Set _CE1 lo
-    LATBbits.LATB4 = 0;
+    // Set CE1_ lo - enabled
+    PORTBbits.RB4 = 0;    
+    // Set CE2 hi - enabled
+    PORTBbits.RB1 = 1;
+    // Set PGM lo - disabled
+    PORTBbits.RB3 = 0;
         
     for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
@@ -427,12 +438,24 @@ void do_blank()
             return;
         }
 
+        if (devType == DEV_8748) {
+            // Set RESET_ lo
+            PORTBbits.RB5 = 0; // RESET_ lo
+            // Set EA to read from program memory
+            LATAbits.LATA1 = 1;
+            // T0 hi (verify mode))
+            PORTBbits.RB4 = 1;
+        }
+        
         // Latch the 16 bit address.
         setup_address(addr);
         
         // Read port D
         uint8_t data = read_port();
-                      
+   
+        // clear EA
+        LATAbits.LATA1 = 0;
+        
         if (data != 0xff) {
             uart_puts("Erase check fail at address ");
             sprintf(ads, "0x%04x = ", addr);
@@ -444,8 +467,8 @@ void do_blank()
         }
     }
     
-    // Set CE2 lo to disable reading
-    LATBbits.LATB1 = 0;
+    // Set CE2 lo - disable
+    PORTBbits.RB1 = 0;
     
     if (ok) {
         uart_puts("OK");
@@ -463,11 +486,11 @@ void do_read()
     uint8_t col=0;
     
     // Set CE1_ lo - enabled
-    LATBbits.LATB4 = 0;    
+    PORTBbits.RB4 = 0;    
     // Set CE2 hi - enabled
-    LATBbits.LATB1 = 1;
+    PORTBbits.RB1 = 1;
     // Set PGM lo - disabled
-    LATBbits.LATB3 = 0;
+    PORTBbits.RB3 = 0;
         
     for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
@@ -475,11 +498,23 @@ void do_read()
             return;
         }
         
+        if (devType == DEV_8748) {
+            // Set RESET_ lo
+            PORTBbits.RB5 = 0; // RESET_ lo
+            // Set EA to read from program memory
+            LATAbits.LATA1 = 1;
+            // T0 hi (verify mode))
+            PORTBbits.RB4 = 1;
+        }
+        
         // Latch the 16 bit address.
         setup_address(addr);
     
         // Read port D
         uint8_t data = read_port();
+        
+        // clear EA
+        LATAbits.LATA1 = 0;
         
         // Write address
         if (col == 0) {
@@ -499,7 +534,7 @@ void do_read()
     }
     
     // Set CE2 lo - disable
-    LATBbits.LATB1 = 0;
+    PORTBbits.RB1 = 0;
 }
 
 // ****************************************************************************
@@ -510,13 +545,13 @@ void write_port(uint8_t data)
     // Write the byte to port D
      __delay_us(10);
     LATD = data;
-
-    // Set CE1 hi 
-    __delay_us(10);
-    PORTBbits.RB4 = 1;
-    
+ 
     if (devType == DEV_8755) {
 
+        // Set CE1 hi 
+        __delay_us(10);
+        PORTBbits.RB4 = 1;
+    
         // Activate PGM pulse for 50mS
         __delay_us(1);
         PORTBbits.RB3 = 1;
@@ -527,13 +562,21 @@ void write_port(uint8_t data)
         PORTBbits.RB3 = 0;
         __delay_us(1);
     
+        // Set CE1 lo
+        PORTBbits.RB4 = 0;
+        __delay_us(1);
+    
     } else if (devType == DEV_8748) {
     
-        // Activate VDD pulse for 50mS
-        __delay_us(1);
+        // Set TO lo
+        __delay_us(2);
+        PORTBbits.RB4 = 0;
+        
+        // Activate VDD pulse
+        __delay_us(2);
         PORTBbits.RB3 = 1;
 
-        // Activate PROG pulse
+        // Activate PROG pulse for 50ms
         PORTAbits.RA4 = 1;
 
         __delay_ms(50);
@@ -543,13 +586,13 @@ void write_port(uint8_t data)
 
         // Deactivate VDD pulse
         PORTBbits.RB3 = 0;
-        __delay_us(1);
+        __delay_us(2);
+        
+        // Set TO hi
+        __delay_us(2);
+        PORTBbits.RB4 = 1;
     
     }
-
-    // Set CE1 lo
-    PORTBbits.RB4 = 0;
-    __delay_us(1);
 }
 
 // ****************************************************************************
@@ -561,9 +604,15 @@ void do_write()
     uint16_t addr;
     char c;
     
+    // Set write mode
+    writing = true;
+    
     // Set port D to output
     TRISD = OUTPUT;
         
+    // Wait for a couple of chars before starting write
+    __delay_ms(100);
+    
     // Set CE2 hi - enable
     PORTBbits.RB1 = 1;
     // Set _RD hi - disable
@@ -572,9 +621,6 @@ void do_write()
     PORTBbits.RB3 = 0;
     
     if (devType == DEV_8748) {
-        // Set CE1 / TO lo
-        PORTBbits.RB4 = 0;
-
         // Set EA to hi
         PORTAbits.RA1 = 1;
     }
@@ -593,26 +639,22 @@ void do_write()
         uint8_t data = hi*16+lo;
         
         // Latch the 16 bit address.
-        if (devType == DEV_8755)
-            setup_address(addr);
-        else
-            setup_write_address(addr);
+        setup_address(addr);
         
         // Write the byte to port D
         write_port(data);
     }
     
-    if (devType == DEV_8748) {    
+    if (devType == DEV_8748) {
         // Set EA to lo
         PORTAbits.RA1 = 0;
-        
-        // Set CE1 / TO hi
-        PORTBbits.RB4 = 1;
-        
     }
     
     // Set CE2 lo - disable
     PORTBbits.RB1 = 0;
+    
+    // unset write mode
+    writing = false;
     
     uart_puts("OK");
 }

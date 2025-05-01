@@ -358,7 +358,7 @@ void setup_address(uint16_t addr)
         PORTBbits.RB5 = 0;
         __delay_us(5);
         PORTBbits.RB5 = 1;
-        __delay_us(10);
+        __delay_us(5);
     }
 }
 
@@ -378,7 +378,7 @@ uint8_t read_port()
     }
     else {
         // 8748
-        __delay_us(1);
+        __delay_us(50);
     }
 
     // Read port D

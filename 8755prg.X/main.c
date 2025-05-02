@@ -250,7 +250,7 @@ void ports_init(void)
     TRISB = OUTPUT;
     // Port B0 = ALE
     // Port B1 = CE2
-    // Port B2 = RD_
+    // Port B2 = RD_ (made input for 8748 as PSEN_ is an output))
     // Port B3 = VDD (switches +25v onto VDD pin)
     // Port B4 = CE1_
     // Port RB5 = RESET/RESET_
@@ -273,15 +273,18 @@ do_type()
     devType = (int8_t) pop() - (int8_t) '0';
             
     if (devType == DEV_8755) {
-        bytes = 2048;      // 8755 has 2K EPROM
-        PORTAbits.RA0 = 0; // SEL
-        PORTBbits.RB5 = 0; // RESET
+        bytes = 2048;         // 8755 has 2K EPROM
+        PORTAbits.RA0 = 0;    // SEL
+        PORTBbits.RB5 = 0;    // RESET
+        TRISBbits.TRISB2 = 1; // RD_ is an I/P
+        PORTBbits.RB2 = 1;    // RD_
     } else 
     if (devType == DEV_8748) {
-        bytes = 1024;      // 8748 has 1K EPROM
-        PORTAbits.RA0 = 1; // SEL
-        PORTBbits.RB5 = 0; // RESET_
-        PORTBbits.RB2 = 0; // RD_/PSEN
+        bytes = 1024;         // 8748 has 1K EPROM
+        PORTAbits.RA0 = 1;    // SEL
+        PORTBbits.RB5 = 0;    // RESET_
+        TRISBbits.TRISB2 = 1; // PSEN is an O/P
+        PORTBbits.RB2 = 0;    // RD_/PSEN
     }
     
     uart_puts("OK");
@@ -348,17 +351,18 @@ void setup_address(uint16_t addr)
     if (devType == DEV_8755) {
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
         PORTBbits.RB0 = 1;
-        __delay_us(1);
+        __delay_us(2);
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
         PORTBbits.RB0 = 0;
-        __delay_us(1);
+        __delay_us(2);
     }
     else {
-        // 8748 set RESET_ hi to latch addresss
+        // 8748 set RESET_ hi to latch address
+        // Use a delay of 4*tcy where tcy = 5us for 8748-8
         PORTBbits.RB5 = 0;
-        __delay_us(5);
+        __delay_us(20);
         PORTBbits.RB5 = 1;
-        __delay_us(5);
+        __delay_us(20);
     }
 }
 
@@ -377,7 +381,7 @@ uint8_t read_port()
         __delay_us(1);
     }
     else {
-        // 8748
+        // 8748. Does it really need this long?
         __delay_us(50);
     }
 
@@ -574,7 +578,7 @@ void write_port(uint8_t data)
         PORTBbits.RB4 = 0;
         
         // Activate VDD pulse
-        __delay_us(2);
+        __delay_us(20);
         PORTBbits.RB3 = 1;
 
         // Activate PROG pulse for 50ms
@@ -587,7 +591,7 @@ void write_port(uint8_t data)
 
         // Deactivate VDD pulse
         PORTBbits.RB3 = 0;
-        __delay_us(2);
+        __delay_us(20);
         
         // Set TO hi
         __delay_us(2);

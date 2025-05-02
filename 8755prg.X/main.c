@@ -490,11 +490,11 @@ void do_read()
     uint8_t col=0;
     
     // Set CE1_ lo - enabled
-    PORTBbits.RB4 = 0;    
+    LATBbits.LATB4 = 0;    
     // Set CE2 hi - enabled
-    PORTBbits.RB1 = 1;
+    LATBbits.LATB1 = 1;
     // Set PGM lo - disabled
-    PORTBbits.RB3 = 0;
+    LATBbits.LATB3 = 0;
         
     for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
@@ -538,7 +538,7 @@ void do_read()
     }
     
     // Set CE2 lo - disable
-    PORTBbits.RB1 = 0;
+    LATBbits.LATB1 = 0;
 }
 
 // ****************************************************************************
@@ -554,20 +554,20 @@ void write_port(uint8_t data)
 
         // Set CE1 hi 
         __delay_us(10);
-        PORTBbits.RB4 = 1;
+        LATBbits.LATB4 = 1;
     
         // Activate PGM pulse for 50mS
-        __delay_us(1);
-        PORTBbits.RB3 = 1;
+        __delay_us(2);
+        LATBbits.LATB3 = 1;
 
         __delay_ms(50);
 
         // Deactivate PGM pulse
-        PORTBbits.RB3 = 0;
-        __delay_us(1);
+        LATBbits.LATB3 = 0;
+        __delay_us(2);
     
         // Set CE1 lo
-        PORTBbits.RB4 = 0;
+        LATBbits.LATB4 = 0;
         __delay_us(1);
     
     } 
@@ -619,11 +619,11 @@ void do_write()
     __delay_ms(100);
     
     // Set CE2 hi - enable
-    PORTBbits.RB1 = 1;
+    LATBbits.LATB1 = 1;
     // Set _RD hi - disable
-    PORTBbits.RB2 = 1;
+    LATBbits.LATB2 = 1;
     // Set PGM lo - disable
-    PORTBbits.RB3 = 0;
+    LATBbits.LATB3 = 0;
     
     if (devType == DEV_8748) {
         // Set EA to hi
@@ -656,7 +656,7 @@ void do_write()
     }
     
     // Set CE2 lo - disable
-    PORTBbits.RB1 = 0;
+    LATBbits.LATB1 = 0;
     
     // unset write mode
     writing = false;

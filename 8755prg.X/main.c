@@ -280,7 +280,7 @@ do_type()
     if (devType == DEV_8748) {
         bytes = 1024;      // 8748 has 1K EPROM
         PORTAbits.RA0 = 1; // SEL
-        PORTBbits.RB5 = 1; // RESET_
+        PORTBbits.RB5 = 0; // RESET_
         PORTBbits.RB2 = 0; // RD_/PSEN
     }
     
@@ -371,7 +371,7 @@ uint8_t read_port()
     TRISD = INPUT;
     __delay_us(5);
     
-    // Set _RD_ lo to enable reading
+    // Set _RD_ lo to enable reading in 8755
     if (devType == DEV_8755) {
         PORTBbits.RB2 = 0;
         __delay_us(1);
@@ -384,15 +384,15 @@ uint8_t read_port()
     // Read port D
     uint8_t data = PORTD;
 
-    // Set _RD hi
+    // Set _RD hi to disable reading in 8755
     if (devType == DEV_8755) {
         __delay_us(1);
         PORTBbits.RB2 = 1;
     }
     else {
-        // 8748 set RESET_ lo
-        __delay_us(20);
-        PORTBbits.RB5 = 0; 
+        // Set RESET_ lo
+        PORTBbits.RB5 = 0;
+        __delay_us(5);
     }
 
     // Set port D back to output 
@@ -440,9 +440,9 @@ void do_blank()
 
         if (devType == DEV_8748) {
             // Set RESET_ lo
-            PORTBbits.RB5 = 0; // RESET_ lo
+            PORTBbits.RB5 = 0;
             // Set EA to read from program memory
-            LATAbits.LATA1 = 1;
+            PORTAbits.RA1 = 1;
             // T0 hi (verify mode))
             PORTBbits.RB4 = 1;
         }
@@ -454,7 +454,7 @@ void do_blank()
         uint8_t data = read_port();
    
         // clear EA
-        LATAbits.LATA1 = 0;
+        PORTAbits.RA1 = 0;
         
         if (data != 0xff) {
             uart_puts("Erase check fail at address ");
@@ -500,9 +500,9 @@ void do_read()
         
         if (devType == DEV_8748) {
             // Set RESET_ lo
-            PORTBbits.RB5 = 0; // RESET_ lo
+            PORTBbits.RB5 = 0;
             // Set EA to read from program memory
-            LATAbits.LATA1 = 1;
+            PORTAbits.RA1 = 1;
             // T0 hi (verify mode))
             PORTBbits.RB4 = 1;
         }
@@ -514,7 +514,7 @@ void do_read()
         uint8_t data = read_port();
         
         // clear EA
-        LATAbits.LATA1 = 0;
+        PORTAbits.RA1 = 0;
         
         // Write address
         if (col == 0) {
@@ -566,7 +566,8 @@ void write_port(uint8_t data)
         PORTBbits.RB4 = 0;
         __delay_us(1);
     
-    } else if (devType == DEV_8748) {
+    } 
+    else if (devType == DEV_8748) {
     
         // Set TO lo
         __delay_us(2);

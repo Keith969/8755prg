@@ -133,9 +133,9 @@ void push(char c)
         
     if ( addone(addone(tail)) == head) {
         // error - queue is full. Flash red led.
-        PORTEbits.RE2 = 1;
+        LATEbits.LATE2 = 1;
         __delay_ms(100);
-        PORTEbits.RE2 = 0;
+        LATEbits.LATE2 = 0;
         __delay_ms(100);
     }
     else {
@@ -158,9 +158,9 @@ char pop()
     // as need to receive chars still.
     while (empty()) {
         // Wait for queue to fill, flash green led.
-        PORTEbits.RE0 = 1;
+        LATEbits.LATE0 = 1;
         __delay_ms(100);
-        PORTEbits.RE0 = 0;
+        LATEbits.LATE0 = 0;
         __delay_ms(100);
     }
 
@@ -233,10 +233,10 @@ void ports_init(void)
     TRISAbits.TRISA3 = 1; // RTS is an active low input
     TRISAbits.TRISA4 = 0;
     TRISAbits.TRISA5 = 0;
-    PORTAbits.RA0    = 0; // select 8755
-    PORTAbits.RA1    = 0; // EA lo
-    PORTAbits.RA2    = 0; // assert CTS
-    PORTAbits.RA4    = 0; // PROG lo
+    LATAbits.LATA0    = 0; // select 8755
+    LATAbits.LATA1    = 0; // EA lo
+    LATAbits.LATA2    = 0; // assert CTS
+    LATAbits.LATA4    = 0; // PROG lo
 
     // Port D output for address/data bits AD0-AD7
     TRISD = OUTPUT;
@@ -256,12 +256,12 @@ void ports_init(void)
     // Port RB5 = RESET/RESET_
     // Port RB6 unused
     // Port RB7 unused
-    PORTBbits.RB0 = 0; // set ALE false
-    PORTBbits.RB1 = 0; // set CE2 false
-    PORTBbits.RB2 = 1; // set RD_ false
-    PORTBbits.RB3 = 0; // set VDD +5v
-    PORTBbits.RB4 = 1; // set CE1_ false
-    PORTBbits.RB5 = 0; // set RESET false for 8755
+    LATBbits.LATB0 = 0; // set ALE false
+    LATBbits.LATB1 = 0; // set CE2 false
+    LATBbits.LATB2 = 1; // set RD_ false
+    LATBbits.LATB3 = 0; // set VDD +5v
+    LATBbits.LATB4 = 1; // set CE1_ false
+    LATBbits.LATB5 = 0; // set RESET false for 8755
 }
 
 // ****************************************************************************
@@ -273,18 +273,18 @@ do_type()
     devType = (int8_t) pop() - (int8_t) '0';
             
     if (devType == DEV_8755) {
-        bytes = 2048;         // 8755 has 2K EPROM
-        PORTAbits.RA0 = 0;    // SEL
-        PORTBbits.RB5 = 0;    // RESET
-        TRISBbits.TRISB2 = 1; // RD_ is an I/P
-        PORTBbits.RB2 = 1;    // RD_
+        bytes = 2048;          // 8755 has 2K EPROM
+        LATAbits.LATA0 = 0;    // SEL
+        LATBbits.LATB5 = 0;    // RESET
+        TRISBbits.TRISB2 = 0;  // RD_ is an O/P from PIC
+        LATBbits.LATB2 = 1;    // RD_ set false
     } else 
     if (devType == DEV_8748) {
-        bytes = 1024;         // 8748 has 1K EPROM
-        PORTAbits.RA0 = 1;    // SEL
-        PORTBbits.RB5 = 0;    // RESET_
-        TRISBbits.TRISB2 = 1; // PSEN is an O/P
-        PORTBbits.RB2 = 0;    // RD_/PSEN
+        bytes = 1024;          // 8748 has 1K EPROM
+        LATAbits.LATA0 = 1;    // SEL
+        LATBbits.LATB5 = 0;    // RESET_
+        TRISBbits.TRISB2 = 1;  // PSEN is an O/P
+        LATBbits.LATB2 = 0;    // RD_/PSEN
     }
     
     uart_puts("OK");
@@ -326,19 +326,19 @@ void __interrupt() isr(void)
 void setup_address(uint16_t addr)
 {
     // We get here with
-    // T0     lo
-    // CE2    hi
-    // PGM    lo
-    // RESET_ lo (if 8748)
-    // EA     hi (if 8748)
-    // T0     hi (if 8748)
+    // T0/CE1_ lo
+    // CE2     hi
+    // PGM     lo
+    // RESET_  lo (if 8748)
+    // EA      hi (if 8748)
+    // T0      hi (if 8748)
     
     // Set port D to output address
     TRISD = OUTPUT;
 
     if (devType == DEV_8755) {
         // Set _RD hi
-        PORTBbits.RB2 = 1;
+        LATBbits.LATB2 = 1;
     }
 
     // Set the address lines. D0-7 is A0-7, C0-2 is A8-10
@@ -350,18 +350,18 @@ void setup_address(uint16_t addr)
     // If we're an 8755
     if (devType == DEV_8755) {
         // Set ALE hi; AD0-7,IO/_M. A8-10, CE2 and _CE1 enter latches
-        PORTBbits.RB0 = 1;
+        LATBbits.LATB0 = 1;
         __delay_us(2);
         // Set ALE lo, latches AD0-7,A8-10, CE2 and _CE1
-        PORTBbits.RB0 = 0;
+        LATBbits.LATB0 = 0;
         __delay_us(2);
     }
     else {
         // 8748 set RESET_ hi to latch address
         // Use a delay of 4*tcy where tcy = 5us for 8748-8
-        PORTBbits.RB5 = 0;
+        LATBbits.LATB5 = 0;
         __delay_us(20);
-        PORTBbits.RB5 = 1;
+        LATBbits.LATB5 = 1;
         __delay_us(20);
     }
 }
@@ -377,11 +377,11 @@ uint8_t read_port()
     
     // Set _RD_ lo to enable reading in 8755
     if (devType == DEV_8755) {
-        PORTBbits.RB2 = 0;
+        LATBbits.LATB2 = 0;
         __delay_us(1);
     }
     else {
-        // 8748. Does it really need this long?
+        // 8748, could be 5us
         __delay_us(50);
     }
 
@@ -391,11 +391,11 @@ uint8_t read_port()
     // Set _RD hi to disable reading in 8755
     if (devType == DEV_8755) {
         __delay_us(1);
-        PORTBbits.RB2 = 1;
+        LATBbits.LATB2 = 1;
     }
     else {
         // Set RESET_ lo
-        PORTBbits.RB5 = 0;
+        LATBbits.LATB5 = 0;
         __delay_us(5);
     }
 
@@ -406,7 +406,7 @@ uint8_t read_port()
 }
 
 // ****************************************************************************
-// Init uart baud rate
+// Init uart baud rate by waiting for a 'U' char
 //
 void do_init()
 {
@@ -430,25 +430,25 @@ void do_blank()
     bool ok = true;
         
     // Set CE1_ lo - enabled
-    PORTBbits.RB4 = 0;    
+    LATBbits.LATB4 = 0;    
     // Set CE2 hi - enabled
-    PORTBbits.RB1 = 1;
+    LATBbits.LATB1 = 1;
     // Set PGM lo - disabled
-    PORTBbits.RB3 = 0;
+    LATBbits.LATB3 = 0;
         
     for (addr = 0; addr < bytes; ++addr) {
         if (cmd_active == false) {
-            uart_puts("Chack aborted\n");
+            uart_puts("Check aborted\n");
             return;
         }
 
         if (devType == DEV_8748) {
             // Set RESET_ lo
-            PORTBbits.RB5 = 0;
+            LATBbits.LATB5 = 0;
             // Set EA to read from program memory
-            PORTAbits.RA1 = 1;
+            LATAbits.LATA1 = 1;
             // T0 hi (verify mode))
-            PORTBbits.RB4 = 1;
+            LATBbits.LATB4 = 1;
         }
         
         // Latch the 16 bit address.
@@ -458,7 +458,7 @@ void do_blank()
         uint8_t data = read_port();
    
         // clear EA
-        PORTAbits.RA1 = 0;
+        LATAbits.LATA1 = 0;
         
         if (data != 0xff) {
             uart_puts("Erase check fail at address ");
@@ -472,7 +472,7 @@ void do_blank()
     }
     
     // Set CE2 lo - disable
-    PORTBbits.RB1 = 0;
+    LATBbits.LATB1 = 0;
     
     if (ok) {
         uart_puts("OK");
@@ -504,11 +504,11 @@ void do_read()
         
         if (devType == DEV_8748) {
             // Set RESET_ lo
-            PORTBbits.RB5 = 0;
+            LATBbits.LATB5 = 0;
             // Set EA to read from program memory
-            PORTAbits.RA1 = 1;
+            LATAbits.LATA1 = 1;
             // T0 hi (verify mode))
-            PORTBbits.RB4 = 1;
+            LATBbits.LATB4 = 1;
         }
         
         // Latch the 16 bit address.
@@ -518,7 +518,7 @@ void do_read()
         uint8_t data = read_port();
         
         // clear EA
-        PORTAbits.RA1 = 0;
+        LATAbits.LATA1 = 0;
         
         // Write address
         if (col == 0) {
@@ -575,27 +575,27 @@ void write_port(uint8_t data)
     
         // Set TO lo
         __delay_us(2);
-        PORTBbits.RB4 = 0;
+        LATBbits.LATB4 = 0;
         
         // Activate VDD pulse
         __delay_us(20);
-        PORTBbits.RB3 = 1;
+        LATBbits.LATB3 = 1;
 
         // Activate PROG pulse for 50ms
-        PORTAbits.RA4 = 1;
+        LATAbits.LATA4 = 1;
 
         __delay_ms(50);
 
         // Deactivate PROG pulse
-        PORTAbits.RA4 = 0;
+        LATAbits.LATA4 = 0;
 
         // Deactivate VDD pulse
-        PORTBbits.RB3 = 0;
+        LATBbits.LATB3 = 0;
         __delay_us(20);
         
         // Set TO hi
         __delay_us(2);
-        PORTBbits.RB4 = 1;
+        LATBbits.LATB4 = 1;
     
     }
 }
@@ -627,7 +627,7 @@ void do_write()
     
     if (devType == DEV_8748) {
         // Set EA to hi
-        PORTAbits.RA1 = 1;
+        LATAbits.LATA1 = 1;
     }
         
     for (addr = 0; addr < bytes; addr++) {
@@ -652,7 +652,7 @@ void do_write()
     
     if (devType == DEV_8748) {
         // Set EA to lo
-        PORTAbits.RA1 = 0;
+        LATAbits.LATA1 = 0;
     }
     
     // Set CE2 lo - disable
@@ -686,8 +686,8 @@ void main(void) {
     while (true) { 
         if (cmd_active) {
             // Turn on orange LED to show we're active
-            PORTEbits.RE0 = 0; // green off
-            PORTEbits.RE1 = 1; // orange on
+            LATEbits.LATE0 = 0; // green off
+            LATEbits.LATE1 = 1; // orange on
             
             // pop the $
             pop();
@@ -727,8 +727,8 @@ void main(void) {
         } 
         else {
             // Green light to show we're ready
-            PORTEbits.RE0 = 1; // green on
-            PORTEbits.RE1 = 0; // orange off
+            LATEbits.LATE0 = 1; // green on
+            LATEbits.LATE1 = 0; // orange off
         }
         
         // Delay for the loop

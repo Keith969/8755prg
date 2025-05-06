@@ -286,7 +286,10 @@ do_type()
         TRISBbits.TRISB2 = 1;  // PSEN is an O/P
         LATBbits.LATB2 = 0;    // RD_/PSEN
     }
-    
+    else {
+        uart_puts("bad type");
+        return;
+    }
     uart_puts("OK");
 }
 
@@ -716,7 +719,7 @@ void main(void) {
                 if (devType == 6)
                     uart_puts("8748");
                 else
-                    uart_puts("NONE");
+                    uart_puts("ERROR");
             }
             else if (cmd == CMD_RSET) {
                 asm("RESET");

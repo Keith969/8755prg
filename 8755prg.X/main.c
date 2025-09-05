@@ -628,7 +628,14 @@ void do_write()
     TRISD = OUTPUT;
         
     // Wait for a couple of chars before starting write
-    __delay_ms(100);
+    __delay_ms(200);
+    
+    // Get the size of the data
+    c = pop();
+    uint8_t hi = charToHexDigit(c);
+    c = pop();
+    uint8_t lo = charToHexDigit(c);
+    uint16_t size = hi*16+lo;
     
     // Set CE2 hi - enable
     LATBbits.LATB1 = 1;
@@ -642,7 +649,7 @@ void do_write()
         LATAbits.LATA1 = 1;
     }
         
-    for (addr = 0; addr < bytes; addr++) {
+    for (addr = 0; addr < size; addr++) {
         if (cmd_active == false) {
             uart_puts("Write aborted\n");
             return;

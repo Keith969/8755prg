@@ -644,7 +644,7 @@ void do_write()
     // Set PGM lo - disable
     LATBbits.LATB3 = 0;
     
-    if (devType == DEV_8748 || devType == DEV_8749) {
+    if (devType == DEV_8748) {
         // Set EA to hi
         LATAbits.LATA1 = 1;
     }

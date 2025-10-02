@@ -29,6 +29,8 @@
 #define DEV_T2716 4
 #define DEV_8755 5
 #define DEV_8748 6
+#define DEV_8749 7
+
 // cmds
 #define CMD_READ '1'               // Read from the EPROM
 #define CMD_WRTE '2'               // Program the EPROM
@@ -285,6 +287,13 @@ do_type()
         LATBbits.LATB5 = 0;    // RESET_
         TRISBbits.TRISB2 = 1;  // PSEN is an O/P
         LATBbits.LATB2 = 0;    // RD_/PSEN
+    } else 
+    if (devType == DEV_8749) {
+        bytes = 2048;          // 8749 has 2K EPROM
+        LATAbits.LATA0 = 1;    // SEL
+        LATBbits.LATB5 = 0;    // RESET_
+        TRISBbits.TRISB2 = 1;  // PSEN is an O/P
+        LATBbits.LATB2 = 0;    // RD_/PSEN
     }
     else {
         uart_puts("bad type");
@@ -445,7 +454,7 @@ void do_blank()
             return;
         }
 
-        if (devType == DEV_8748) {
+        if (devType == DEV_8748 || devType == DEV_8749) {
             // Set RESET_ lo
             LATBbits.LATB5 = 0;
             // Set EA to read from program memory
@@ -505,7 +514,7 @@ void do_read()
             return;
         }
         
-        if (devType == DEV_8748) {
+        if (devType == DEV_8748 || devType == DEV_8749) {
             // Set RESET_ lo
             LATBbits.LATB5 = 0;
             // Set EA to read from program memory
@@ -574,7 +583,7 @@ void write_port(uint8_t data)
         __delay_us(1);
     
     } 
-    else if (devType == DEV_8748) {
+    else if (devType == DEV_8748 || devType == DEV_8749) {
     
         // Set TO lo
         __delay_us(2);
@@ -619,7 +628,14 @@ void do_write()
     TRISD = OUTPUT;
         
     // Wait for a couple of chars before starting write
-    __delay_ms(100);
+    __delay_ms(200);
+    
+    // Get the size of the data
+    c = pop();
+    uint8_t hi = charToHexDigit(c);
+    c = pop();
+    uint8_t lo = charToHexDigit(c);
+    uint16_t size = hi*16+lo;
     
     // Set CE2 hi - enable
     LATBbits.LATB1 = 1;
@@ -628,12 +644,12 @@ void do_write()
     // Set PGM lo - disable
     LATBbits.LATB3 = 0;
     
-    if (devType == DEV_8748) {
+    if (devType == DEV_8748 || devType == DEV_8749) {
         // Set EA to hi
         LATAbits.LATA1 = 1;
     }
         
-    for (addr = 0; addr < bytes; addr++) {
+    for (addr = 0; addr < size; addr++) {
         if (cmd_active == false) {
             uart_puts("Write aborted\n");
             return;
@@ -653,7 +669,7 @@ void do_write()
         write_port(data);
     }
     
-    if (devType == DEV_8748) {
+    if (devType == DEV_8748 || devType == DEV_8749) {
         // Set EA to lo
         LATAbits.LATA1 = 0;
     }
@@ -716,8 +732,10 @@ void main(void) {
             else if (cmd == CMD_IDEN) {
                 if (devType == 5)
                     uart_puts("8755");
-                if (devType == 6)
+                else if (devType == 6)
                     uart_puts("8748");
+                else if (devType == 7)
+                    uart_puts("8749");
                 else
                     uart_puts("ERROR");
             }
